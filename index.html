@@ -15,7 +15,12 @@ var vm = new Scm_vm();
 function do_eval()
 {
   var form = eval(document.forms.evalform.input.value);
-  var result = scm_eval(vm, form);
+  var result;
+  try {
+    result = scm_eval(vm, form);
+  } catch(e) {
+    result = e;
+  }
   var resultDiv = document.createElement("div");
   resultDiv.appendChild(document.createTextNode(result));
   document.getElementById("output").appendChild(resultDiv);
