@@ -92,11 +92,12 @@ function scm_compile_callcc(form, next)
 function scm_compile_application(form, next)
 {
     var f = scm_compound_elt(form, 0);
-    return compile_application(scm_compile(f, { op: "apply" }), 1);
+    return compile_application(scm_compile(f, { op: "apply" }),
+                               scm_compound_length(form) - 1);
 
     function compile_application(c, i)
     {
-        if (i === scm_compound_length(form)) {
+        if (i === 0) {
             if (scm_is_return(next)) {
                 return c;
             } else {
@@ -105,7 +106,7 @@ function scm_compile_application(form, next)
         } else {
             return compile_application(scm_compile(scm_compound_elt(form, i),
                                                    { op: "argument", next: c }),
-                                       i + 1);
+                                       i - 1);
         }
     }
 }
