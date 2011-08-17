@@ -175,9 +175,9 @@ function scm_eval(vm, form)
 
 function scm_make_continuation(s)
 {
-    return new Scm_closure({ op: "nuate", name: "v", s: s },
-                           scm_make_env(),
-                           ["v"]);
+    return scm_make_closure({ op: "nuate", name: "v", s: s },
+                            scm_make_env(),
+                            ["v"]);
 }
 
 /**** Environments ****/
@@ -232,7 +232,7 @@ function scm_extend(env, vars, args)
     return xenv;
 }
 
-/**** Closures, Call Frames, Continuations, Arguments ****/
+/**** Closures, Call Frames, Arguments ****/
 
 function Scm_closure(body, env, vars)
 {
