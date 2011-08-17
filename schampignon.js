@@ -12,6 +12,10 @@
 //
 // ["call/cc", ["lambda", ["k"], ["k", 12]]] --> 12
 //
+// ["set!", "foo", ["lambda", [], ["bar"]]]
+// ["set!", "bar", ["lambda", [], 44]]
+// ["foo"] --> 44
+//
 // Differences:
 // - Arguments are evaluated left-to-right instead of right-to-left.
 
@@ -237,7 +241,7 @@ function scm_extend(env, vars, args)
 function Scm_closure(body, env, vars)
 {
     this.body = body;
-    this.env = env;
+    this.e = env;
     this.vars = vars;
 }
 
