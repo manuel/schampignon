@@ -51,6 +51,8 @@ function scm_compile(form, next)
 function scm_compile_application(form, next)
 {
     var f = scm_compound_elt(form, 0);
+    /* Difference to Scheme interpreter:
+       We simply store the rest of the form in the apply instruction. */
     var c = scm_compile(f, { op: "apply", form: form.slice(1) });
     if (scm_is_return(next)) {
         return c;
