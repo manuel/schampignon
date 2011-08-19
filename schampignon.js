@@ -155,6 +155,11 @@ function scm_just_update(env, name, value)
 function scm_extend(env, sig, denv, form)
 {
     var xenv = scm_make_env(env);
+    /* Difference to Scheme interpreter:
+
+       We just slap the form and the dynamic environment into the
+       closure's extended environment.  (The form should really be
+       destructured according to the signature.). */
     scm_just_update(xenv, sig, form);
     scm_just_update(xenv, denv, env);
     return xenv;
