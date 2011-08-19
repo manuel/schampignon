@@ -168,9 +168,9 @@ function Scm_closure(body, env, sig, denv)
     this.denv = denv;
 }
 
-function scm_make_closure(body, env, args, denv)
+function scm_make_closure(body, env, sig, denv)
 {
-    return new Scm_closure(body, env, args, denv);
+    return new Scm_closure(body, env, sig, denv);
 }
 
 function Scm_frame(x, e, s)
