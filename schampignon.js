@@ -4,6 +4,10 @@
 // An interpreter for a very minimal, Kernel-like language:
 //
 // [["$vau", "x", "%ignore", "x"], 1, 2] --> [1, 2]
+//
+// ["$define!", "foo", ["$vau", "x", "%ignore", "x"]]
+// ["foo", 1, 2, 3]
+// --> [1, 2, 3]
 
 /**** Virtual Machine ****/
 
