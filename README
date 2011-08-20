@@ -1,0 +1,6 @@
+Schampignon is an experimental interpreter, related to the
+Virtua programming language: http://manuel.github.com/virtua
+
+The master branch is Scheme-like.
+
+The fexpr branch is Kernel-like.
