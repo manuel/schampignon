@@ -4,3 +4,6 @@ Virtua programming language: http://manuel.github.com/virtua
 The master branch is Scheme-like.
 
 The fexpr branch is Kernel-like.
+
+The fexpr-nt branch is Kernel-like, but with an entirely different
+implementation.
