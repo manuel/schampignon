@@ -1,18 +1,6 @@
+// An interpreter for a Kernel-like language.
 // By Manuel Simoni <msimoni@gmail.com>, August 2011
 // In the public domain.
-
-// An interpreter for a very minimal, Kernel-like language:
-//
-// [["$vau", "x", "%ignore", "x"], 1, 2] --> [1, 2]
-//
-// ["$define!", "foo", ["$vau", "x", "%ignore", "x"]]
-// ["foo", 1, 2, 3]
-// --> [1, 2, 3]
-//
-// ["$define!", "bar", ["$vau", "x", "%ignore", ["foo", "x"]]]
-// ["bar", 44]
-// --> "x"
-// (remember, these are fexprs ;))
 
 /**** Virtual Machine ****/
 
@@ -20,7 +8,7 @@ function Scm_vm()
 {
     // Accumulator
     this.a = null;
-    // neXt state
+    // neXt instruction
     this.x = null;
     // Environment
     this.e = scm_make_env();
@@ -32,12 +20,12 @@ function Scm_vm()
 
 function scm_eval(vm, form)
 {
-    scm_interp(vm, form, scm_halt_state, false);
+    scm_compile(vm, form, scm_insn_halt, false);
     while(vm.x(vm));
     return vm.a;
 }
 
-function scm_interp(vm, form, next, tail)
+function scm_compile(vm, form, next, tail)
 {
     if (scm_is_symbol(form)) {
         vm.a = scm_lookup(vm.e, form);
@@ -45,21 +33,20 @@ function scm_interp(vm, form, next, tail)
     } else if (scm_is_compound(form)) {
         switch (scm_compound_operator(form)) {
         case "$vau":
-            var sig = scm_compound_elt(form, 1);
-            var denv = scm_compound_elt(form, 2);
+            var ptree = scm_compound_elt(form, 1);
+            var eformal = scm_compound_elt(form, 2);
             var body = scm_compound_elt(form, 3);
-            vm.a = scm_make_closure(body, vm.e, sig, denv);
+            vm.a = scm_make_combiner(vm.e, ptree, eformal, body);
             vm.x = next;
             break;
         case "$define!":
-            var name = scm_compound_elt(form, 1);
-            var value = scm_compound_elt(form, 2);
-            scm_interp(vm, value, scm_assign_state(name, next), false);
+            var ptree = scm_compound_elt(form, 1);
+            var expr = scm_compound_elt(form, 2);
+            scm_compile(vm, expr, scm_insn_define(ptree, next), false);
             break;
         default:
             var combiner = scm_compound_elt(form, 0);
-            var operands = scm_compound_slice(form, 1);
-            scm_interp(vm, combiner, scm_combine_state(operands, next, tail), false);
+            scm_compile(vm, combiner, scm_insn_combine(form, next, tail), false);
         }
     } else {
         vm.a = form;
@@ -67,36 +54,34 @@ function scm_interp(vm, form, next, tail)
     }
 }
 
-function scm_assign_state(name, next)
+function scm_insn_define(ptree, next)
 {
     return function(vm) {
-        scm_update(vm.e, name, vm.a);
+        scm_update(vm.e, ptree, vm.a);
         vm.x = next;
         return true;
     };
 }
 
-function scm_combine_state(operands, next, tail)
+function scm_insn_combine(whole_form, next, tail)
 {
     return function(vm) {
-        var closure = vm.a;
-        if (!tail) {
-            vm.s = scm_make_frame(next, vm.e, vm.s);
-        }
-        vm.e = scm_extend(closure.e, closure.sig, closure.denv, operands);
-        scm_interp(vm, closure.body, tail ? next : scm_pop_state, true);
+        if (!tail) vm.s = scm_make_frame(next, vm.e, vm.s);
+        vm.e = scm_extend(vm.e, vm.a, whole_form);
+        scm_compile(vm, vm.a.body, tail ? next : scm_insn_return, true);
         return true;
     };
 }
 
-function scm_pop_state(vm)
+function scm_insn_return(vm)
 {
     vm.x = vm.s.x;
     vm.e = vm.s.e;
     vm.s = vm.s.s;
+    return true;
 }
 
-function scm_halt_state(vm)
+function scm_insn_halt(vm)
 {
     return false;
 }
@@ -116,7 +101,7 @@ function scm_make_env(parent)
 
 function scm_lookup(env, name)
 {
-    var value = env.bindings[name];
+    var value = scm_just_lookup(env, name);
     if (value !== undefined) {
         return value;
     } else {
@@ -127,9 +112,14 @@ function scm_lookup(env, name)
     }
 }
 
+function scm_just_lookup(env, name)
+{
+    return env.bindings[name];
+}
+
 function scm_update(env, name, value)
 {
-    if (env.bindings[name] !== undefined) {
+    if (scm_just_lookup(env, name) !== undefined) {
         scm_just_update(env, name, value);
     } else {
         if (env.parent)
@@ -144,27 +134,27 @@ function scm_just_update(env, name, value)
     env.bindings[name] = value;
 }
 
-function scm_extend(env, sig, denv, form)
+function scm_extend(denv, combiner, whole_form)
 {
-    var xenv = scm_make_env(env);
-    scm_just_update(xenv, sig, form);
-    scm_just_update(xenv, denv, env);
+    var xenv = scm_make_env(combiner.env);
+    scm_just_update(xenv, combiner.ptree, whole_form.slice(1));
+    scm_just_update(xenv, combiner.eformal, denv);
     return xenv;
 }
 
-/**** Closures, Call Frames, Arguments ****/
+/**** Combiners, Frames, Arguments ****/
 
-function Scm_closure(body, env, sig, denv)
+function Scm_combiner(env, ptree, eformal, body)
 {
+    this.env = env;
+    this.ptree = ptree;
+    this.eformal = eformal;
     this.body = body;
-    this.e = env;
-    this.sig = sig;
-    this.denv = denv;
 }
 
-function scm_make_closure(body, env, sig, denv)
+function scm_make_combiner(env, ptree, eformal, body)
 {
-    return new Scm_closure(body, env, sig, denv);
+    return new Scm_combiner(env, ptree, eformal, body);
 }
 
 function Scm_frame(x, e, s)
@@ -177,6 +167,29 @@ function Scm_frame(x, e, s)
 function scm_make_frame(x, e, s)
 {
     return new Scm_frame(x, e, s);
+}
+
+/**** Wrappers ****/
+
+function Scm_wrapper(combiner)
+{
+    this.combiner = combiner;
+}
+
+function scm_wrap(combiner)
+{
+    return new Scm_wrapper(combiner);
+}
+
+function scm_unwrap(applicative)
+{
+    scm_assert(scm_is_applicative(combiner));
+    return applicative.combiner;
+}
+
+function scm_is_applicative(combiner)
+{
+    return (combiner instanceof Scm_wrapper);
 }
 
 /**** Forms ****/
@@ -201,12 +214,6 @@ function scm_compound_elt(x, i)
 {
     scm_assert(scm_is_compound(x));
     return x[i];
-}
-
-function scm_compound_slice(x, i)
-{
-    scm_assert(scm_is_compound(x));
-    return x.slice(i);
 }
 
 function scm_compound_length(x)
