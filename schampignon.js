@@ -15,7 +15,7 @@ function Scm_vm()
 {
     // Accumulator
     this.a = null;
-    // neXt instruction
+    // neXt state
     this.x = null;
     // Environment
     this.e = scm_make_env();
@@ -23,94 +23,80 @@ function Scm_vm()
     this.s = null;
 }
 
-/**** Compilation ****/
-
-function scm_compile(form, next)
-{
-    if (scm_is_symbol(form)) {
-        return { op: "refer", name: form, next: next };
-    } else if (scm_is_compound(form)) {
-        switch(scm_compound_operator(form)) {
-        case "$vau":
-            var sig = scm_compound_elt(form, 1);
-            var denv = scm_compound_elt(form, 2);
-            var body = scm_compound_elt(form, 3);
-            return { op: "close",
-                     sig: sig,
-                     denv: denv,
-                     body: scm_compile(body, { op: "return" }),
-                     next: next };
-        case "$define!":
-            var name = scm_compound_elt(form, 1);
-            var value = scm_compound_elt(form, 2);
-            return scm_compile(value, { op: "assign", name: name, next: next });
-        default:
-            return scm_compile_application(form, next);
-        }
-    } else {
-        return { op: "constant", obj: form, next: next };
-    }
-}
-
-function scm_compile_application(form, next)
-{
-    var f = scm_compound_elt(form, 0);
-    /* Difference to Scheme interpreter:
-       We simply store the rest of the form in the apply instruction. */
-    var c = scm_compile(f, { op: "apply", form: form.slice(1) });
-    if (scm_is_return(next)) {
-        return c;
-    } else {
-        return { op: "frame", ret: next, next: c };
-    }
-}
-
-function scm_is_return(insn)
-{
-    return insn.op === "return";
-}
-
 /**** Evaluation ****/
 
 function scm_eval(vm, form)
 {
-    vm.x = scm_compile(form, { op: "halt" });
-    while(true) {
-        var insn = vm.x;
-        switch(insn.op) {
-        case "halt":
-            return vm.a;
-        case "refer":
-            vm.a = scm_lookup(vm.e, insn.name);
-            vm.x = insn.next;
-            continue;
-        case "constant":
-            vm.a = insn.obj;
-            vm.x = insn.next;
-            continue;
-        case "close":
-            vm.a = scm_make_closure(insn.body, vm.e, insn.sig, insn.denv);
-            vm.x = insn.next;
-            continue;
-        case "assign":
-            scm_update(vm.e, insn.name, vm.a);
-            vm.x = insn.next;
-            continue;
-        case "frame":
-            vm.x = insn.next;
-            vm.s = scm_make_frame(insn.ret, vm.e, vm.s);
-            continue;
-        case "apply":
-            vm.x = vm.a.body;
-            vm.e = scm_extend(vm.a.e, vm.a.sig, vm.a.denv, insn.form);
-            continue;
-        case "return":
-            vm.x = vm.s.x;
-            vm.e = vm.s.e;
-            vm.s = vm.s.s;
-            continue;
+    scm_interp(vm, form, scm_halt_state, false);
+    while(vm.x(vm));
+    return vm.a;
+}
+
+function scm_interp(vm, form, next, tail)
+{
+    if (scm_is_symbol(form)) {
+        vm.a = scm_lookup(vm.e, form);
+        vm.x = next;
+    } else if (scm_is_compound(form)) {
+        switch (scm_compound_operator(form)) {
+        case "$vau":
+            var sig = scm_compound_elt(form, 1);
+            var denv = scm_compound_elt(form, 2);
+            var body = scm_compound_elt(form, 3);
+            vm.a = scm_make_closure(body, vm.e, sig, denv);
+            vm.x = next;
+            break;
+        case "$define!":
+            var name = scm_compound_elt(form, 1);
+            var value = scm_compound_elt(form, 2);
+            scm_interp(vm, value, scm_assign_state(name, next), false);
+            break;
+        default:
+            var combiner = scm_compound_elt(form, 0);
+            var operands = scm_compound_slice(form, 1);
+            scm_interp(vm, combiner, scm_combine_state(operands, next, tail), false);
         }
+    } else {
+        vm.a = form;
+        vm.x = next;
     }
+}
+
+function scm_assign_state(name, next)
+{
+    return function(vm) {
+        scm_update(vm.e, name, vm.a);
+        vm.x = next;
+        return true;
+    };
+}
+
+function scm_combine_state(operands, next, tail)
+{
+    return function(vm) {
+        var closure = vm.a;
+        if (!tail) {
+            vm.s = scm_make_frame(next, vm.e, vm.s);
+        }
+        vm.e = scm_extend(closure.e, closure.sig, closure.denv, operands);
+        scm_interp(vm, closure.body, tail ? next : scm_pop_state(next), true);
+        return true;
+    };
+}
+
+function scm_pop_state(next)
+{
+    return function(vm) {
+        vm.x = next;
+        vm.e = vm.s.e;
+        vm.s = vm.s.s;
+        return true;
+    }
+}
+
+function scm_halt_state(vm)
+{
+    return false;
 }
 
 /**** Environments ****/
@@ -159,11 +145,6 @@ function scm_just_update(env, name, value)
 function scm_extend(env, sig, denv, form)
 {
     var xenv = scm_make_env(env);
-    /* Difference to Scheme interpreter:
-
-       We just slap the form and the dynamic environment into the
-       closure's extended environment.  (The form should really be
-       destructured according to the signature.). */
     scm_just_update(xenv, sig, form);
     scm_just_update(xenv, denv, env);
     return xenv;
@@ -218,6 +199,12 @@ function scm_compound_elt(x, i)
 {
     scm_assert(scm_is_compound(x));
     return x[i];
+}
+
+function scm_compound_slice(x, i)
+{
+    scm_assert(scm_is_compound(x));
+    return x.slice(i);
 }
 
 function scm_compound_length(x)
