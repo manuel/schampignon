@@ -8,6 +8,11 @@
 // ["$define!", "foo", ["$vau", "x", "%ignore", "x"]]
 // ["foo", 1, 2, 3]
 // --> [1, 2, 3]
+//
+// ["$define!", "bar", ["$vau", "x", "%ignore", ["foo", "x"]]]
+// ["bar", 44]
+// --> "x"
+// (remember, these are fexprs ;))
 
 /**** Virtual Machine ****/
 
@@ -79,19 +84,16 @@ function scm_combine_state(operands, next, tail)
             vm.s = scm_make_frame(next, vm.e, vm.s);
         }
         vm.e = scm_extend(closure.e, closure.sig, closure.denv, operands);
-        scm_interp(vm, closure.body, tail ? next : scm_pop_state(next), true);
+        scm_interp(vm, closure.body, tail ? next : scm_pop_state, true);
         return true;
     };
 }
 
-function scm_pop_state(next)
+function scm_pop_state(vm)
 {
-    return function(vm) {
-        vm.x = next;
-        vm.e = vm.s.e;
-        vm.s = vm.s.s;
-        return true;
-    }
+    vm.x = vm.s.x;
+    vm.e = vm.s.e;
+    vm.s = vm.s.s;
 }
 
 function scm_halt_state(vm)
