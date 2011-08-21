@@ -15,10 +15,12 @@
 var ground_env = new Scm_env();
 scm_just_update(ground_env, "$define!", new Scm_define());
 scm_just_update(ground_env, "$vau", new Scm_vau());
-scm_just_update(ground_env, "eval", new Scm_eval());
+scm_just_update(ground_env, "eval", scm_wrap(new Scm_eval()));
 scm_just_update(ground_env, "wrap", scm_make_native(scm_wrap));
 scm_just_update(ground_env, "unwrap", scm_make_native(scm_unwrap));
 scm_just_update(ground_env, "null?", scm_make_native(scm_nullp));
+scm_just_update(ground_env, "car", scm_make_native(scm_car));
+scm_just_update(ground_env, "cdr", scm_make_native(scm_cdr));
 scm_just_update(ground_env, "cons", scm_make_native(scm_cons));
 scm_just_update(ground_env, "%inert", {});
 scm_just_update(ground_env, "print", scm_make_native(do_print));
@@ -52,6 +54,10 @@ function do_print(string)
   </script>
 <p>Some sample code for playing
 <pre>
+($define! list (wrap ($vau x %ignore x)))
+
+($define! get-current-environment (wrap ($vau %ignore e e)))
+
 ($define! $sequence
    ((wrap ($vau $seq2- %ignore
              ((car $seq2-)

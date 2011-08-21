@@ -38,6 +38,7 @@ function scm_eval(vm, form)
     return vm.a;
 }
 
+/* "Compile" is a misnomer. */
 function scm_compile(vm, form, next, tail)
 {
     if (scm_is_symbol(form)) {
@@ -218,18 +219,19 @@ function scm_make_native(js_fun)
 
 /**** eval ****/
 
+/* Needs to be wrapped. */
 function Scm_eval() {}
 
 /* Eval is slightly tricky because the expression has to be evaluated
    in tail context. */
-Scm_eval.prototype.scm_combine = function(vm, otree, next, tail)
+Scm_eval.prototype.scm_combine = function(vm, args, next, tail)
 {
-    var expr = scm_compound_elt(otree, 0);
-    var env = scm_compound_elt(otree, 1);
+    var expr = scm_compound_elt(args, 0);
+    var env = scm_compound_elt(args, 1);
     scm_compile(vm, env, scm_insn_eval(expr, next, tail), false);
     return true;
 }
-    
+
 function scm_insn_eval(expr, next, tail)
 {
     return function(vm) {
@@ -341,12 +343,12 @@ function scm_nullp(c)
 function scm_compound_elt(x, i)
 {
     scm_assert(scm_is_non_nil_compound(x));
-    var c = x;
+    scm_assert(i >= 0);
     while(i > 0) {
-        c = scm_cdr(x);
+        x = scm_cdr(x);
         i--;
     }
-    return scm_car(c);
+    return scm_car(x);
 }
 
 function scm_array_to_cons_list(array)
@@ -413,7 +415,10 @@ function scm_number_syntax_action(ast)
 }
 
 var scm_identifier_special_char =
-    choice("-", "&", "!", ":", ".", "=", ">","<", "%", "+", "?", "/", "*", "#", "$");
+    choice(// R5RS
+           "-", "&", "!", ":", ".", "=", ">","<", "%", "+", "?", "/", "*", "#",
+           // Additional
+           "$", "_");
 
 var scm_identifier_syntax =
     action(join_action(repeat1(choice(range("a", "z"),
