@@ -75,15 +75,10 @@ function scm_general_combine(vm, otree, next, tail)
         vm.x = scm_insn_argument_eval(combiner, next, tail);
     } else {
         /* Operatives are entered directly. */
-        scm_enter(vm, vm.a, otree, next, tail);
+        vm.e = scm_extend(vm.e, vm.a, otree);
+        scm_compile(vm, vm.a.body, tail ? next : scm_insn_return, true);
     }
     return true;
-}
-
-function scm_enter(vm, combiner, otree, next, tail)
-{
-    vm.e = scm_extend(vm.e, combiner, otree);
-    scm_compile(vm, combiner.body, tail ? next : scm_insn_return, true);
 }
 
 /* Argument evaluation works by ping-ponging between argument_eval and
@@ -97,9 +92,7 @@ function scm_insn_argument_eval(combiner, next, tail)
             scm_compile(vm, operand, scm_insn_argument_store(combiner, next, tail), false);
             return true;
         } else {
-            /* BUG: This doesn't work for two (or more) times wrapped
-               combiners. */
-            scm_enter(vm, combiner, scm_array_to_cons_list(vm.r), next, tail);
+            scm_compile(vm, scm_cons(combiner, scm_array_to_cons_list(vm.r)), next, tail);
             return true;
         }
     };
@@ -107,9 +100,11 @@ function scm_insn_argument_eval(combiner, next, tail)
 
 function scm_insn_argument_store(combiner, next, tail)
 {
-    vm.r.push(vm.a);
-    vm.x = scm_insn_argument_eval(combiner, next, tail);
-    return true;
+    return function(vm) {
+        vm.r.push(vm.a);
+        vm.x = scm_insn_argument_eval(combiner, next, tail);
+        return true;
+    }
 }
 
 /* Pop the stack, restoring the saved registers. */
@@ -193,13 +188,55 @@ function scm_wrap(combiner)
 
 function scm_unwrap(applicative)
 {
-    scm_assert(scm_is_applicative(combiner));
+    scm_assert(scm_is_applicative(applicative));
     return applicative.combiner;
 }
 
 function scm_is_applicative(combiner)
 {
     return (combiner instanceof Scm_wrapper);
+}
+
+/**** Native applicatives ****/
+
+function Scm_native(js_fun)
+{
+    this.js_fun = js_fun;
+}
+
+Scm_native.prototype.scm_combine = function(vm, args, next, tail)
+{
+    vm.a = this.js_fun.apply(null, scm_cons_list_to_array(args));
+    vm.x = next;
+    return true;
+}
+
+function scm_make_native(js_fun)
+{
+    return scm_wrap(new Scm_native(js_fun));
+}
+
+/**** eval ****/
+
+function Scm_eval() {}
+
+/* Eval is slightly tricky because the expression has to be evaluated
+   in tail context. */
+Scm_eval.prototype.scm_combine = function(vm, otree, next, tail)
+{
+    var expr = scm_compound_elt(otree, 0);
+    var env = scm_compound_elt(otree, 1);
+    scm_compile(vm, env, scm_insn_eval(expr, next, tail), false);
+    return true;
+}
+    
+function scm_insn_eval(expr, next, tail)
+{
+    return function(vm) {
+        vm.e = vm.a;
+        scm_compile(vm, expr, next, tail);
+        return true;
+    };
 }
 
 /**** Environments ****/
@@ -283,7 +320,7 @@ function scm_is_symbol(x)
 
 function scm_is_compound(x)
 {
-    return (x === scm_nil) || scm_is_non_nil_compound(x);
+    return (scm_nullp(x)) || scm_is_non_nil_compound(x);
 }
 
 function scm_is_non_nil_compound(x)
@@ -294,6 +331,11 @@ function scm_is_non_nil_compound(x)
 function scm_compound_operator(x)
 {
     return scm_car(x);
+}
+
+function scm_nullp(c)
+{
+    return c === scm_nil;
 }
 
 function scm_compound_elt(x, i)
@@ -313,6 +355,17 @@ function scm_array_to_cons_list(array)
     for (var i = array.length; i > 0; i--)
         c = scm_cons(array[i - 1], c);
     return c;
+}
+
+function scm_cons_list_to_array(c)
+{
+    scm_assert(scm_is_compound(c));
+    var res = [];
+    while(!scm_nullp(c)) {
+        res.push(scm_car(c));
+        c = scm_cdr(c);
+    }
+    return res;
 }
 
 /**** Utilities ****/

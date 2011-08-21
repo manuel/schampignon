@@ -15,6 +15,13 @@
 var ground_env = new Scm_env();
 scm_just_update(ground_env, "$define!", new Scm_define());
 scm_just_update(ground_env, "$vau", new Scm_vau());
+scm_just_update(ground_env, "eval", new Scm_eval());
+scm_just_update(ground_env, "wrap", scm_make_native(scm_wrap));
+scm_just_update(ground_env, "unwrap", scm_make_native(scm_unwrap));
+scm_just_update(ground_env, "null?", scm_make_native(scm_nullp));
+scm_just_update(ground_env, "cons", scm_make_native(scm_cons));
+scm_just_update(ground_env, "%inert", {});
+scm_just_update(ground_env, "print", scm_make_native(do_print));
 
 var vm = new Scm_vm(new Scm_env(ground_env));
 
@@ -40,7 +47,28 @@ function do_print(string)
     resultDiv.appendChild(document.createTextNode(string));
     document.getElementById("output").appendChild(resultDiv);
     document.forms.evalform.input.value = "";
+    return false;
 }
   </script>
+<p>Some sample code for playing
+<pre>
+($define! $sequence
+   ((wrap ($vau $seq2- %ignore
+             ((car $seq2-)
+                ($define! $aux
+                   ($vau x env
+                      ($if (null? (cdr x))
+                           (eval (car x) env)
+                           ((car $seq2-)
+                              (eval (car x) env)
+                              (eval (cons $aux (cdr x)) env)))))
+                ($vau body env
+                   ($if (null? body)
+                        %inert
+                        (eval (cons $aux body) env))))))
+      ($vau f-s env
+         ((wrap ($vau %ignore %ignore (eval (car (cdr f-s)) env)))
+          (eval (car f-s) env)))))
+</pre>
 </body>
 </html>
