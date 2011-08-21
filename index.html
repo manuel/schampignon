@@ -1,6 +1,7 @@
 <html>
 <head>
   <title>Schampignon</title>
+  <script src="jsparse.js" type="text/javascript"></script>
   <script src="schampignon.js" type="text/javascript"></script>
 </head>
 <body>
@@ -11,21 +12,34 @@
     <input type="submit" value="eval">
   </form>
   <script type="text/javascript">
-var vm = new Scm_vm();
+var ground_env = new Scm_env();
+scm_just_update(ground_env, "$define!", new Scm_define());
+scm_just_update(ground_env, "$vau", new Scm_vau());
+
+var vm = new Scm_vm(new Scm_env(ground_env));
+
 function do_eval()
 {
-  var form = eval(document.forms.evalform.input.value);
-  var result;
-  try {
-    result = scm_eval(vm, form);
-  } catch(e) {
-    result = e;
+  var forms = scm_parse(document.forms.evalform.input.value);
+  do_print(document.forms.evalform.input.value);
+  for (var i = 0; i < forms.length; i++) {
+    var result;
+    try {
+      result = scm_eval(vm, forms[i]);
+    } catch(e) {
+      result = "ERROR: " + e;
+    }
+    do_print(result);
   }
-  var resultDiv = document.createElement("div");
-  resultDiv.appendChild(document.createTextNode(result));
-  document.getElementById("output").appendChild(resultDiv);
-  document.forms.evalform.input.value = "";
   return false;
+}
+
+function do_print(string)
+{
+    var resultDiv = document.createElement("div");
+    resultDiv.appendChild(document.createTextNode(string));
+    document.getElementById("output").appendChild(resultDiv);
+    document.forms.evalform.input.value = "";
 }
   </script>
 </body>

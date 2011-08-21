@@ -4,14 +4,14 @@
 
 /**** Virtual Machine ****/
 
-function Scm_vm()
+function Scm_vm(e)
 {
     // Accumulator
     this.a = null;
     // neXt instruction
     this.x = null;
     // Environment
-    this.e = new Scm_env();
+    this.e = e;
     // evaluated operands (aRguments)
     this.r = [];
     // Unevaluated operands
@@ -66,7 +66,7 @@ function scm_insn_combine(otree, next, tail)
    different methods. */
 function scm_general_combine(vm, otree, next, tail)
 {
-    if (!tail) vm.s = scm_make_frame(next, vm.e, vm.r, vm.u, vm.s);
+    if (!tail) vm.s = new Scm_frame(next, vm.e, vm.r, vm.u, vm.s);
     vm.r = [];
     if (scm_is_applicative(vm.a)) {
         /* For applicatives, make a detour through argument evaluation. */
@@ -97,6 +97,8 @@ function scm_insn_argument_eval(combiner, next, tail)
             scm_compile(vm, operand, scm_insn_argument_store(combiner, next, tail), false);
             return true;
         } else {
+            /* BUG: This doesn't work for two (or more) times wrapped
+               combiners. */
             scm_enter(vm, combiner, scm_array_to_cons_list(vm.r), next, tail);
             return true;
         }
@@ -324,3 +326,68 @@ function scm_error(msg)
 {
     throw msg;
 }
+
+/**** Parser ****/
+
+function scm_parse(string)
+{
+    var result = scm_program_syntax(ps(string));
+    if (result.ast) {
+        return result.ast;
+    } else {
+        return scm_error("Reader error", string);
+    }
+}
+
+var scm_expression_syntax =
+    function(input) { return scm_expression_syntax(input); }; // forward decl.
+
+var scm_digits = 
+    join_action(repeat1(range("0", "9")), "");
+
+var scm_number_syntax =
+    action(sequence(optional(choice("+", "-")),
+                    scm_digits,
+                    optional(join_action(sequence(".", scm_digits), ""))),
+           scm_number_syntax_action);
+
+function scm_number_syntax_action(ast)
+{    
+    var sign = ast[0] ? ast[0] : "+";
+    var integral_digits = ast[1];
+    var fractional_digits = ast[2] || "";
+    return Number(sign + integral_digits + fractional_digits);
+}
+
+var scm_identifier_special_char =
+    choice("-", "&", "!", ":", ".", "=", ">","<", "%", "+", "?", "/", "*", "#", "$");
+
+var scm_identifier_syntax =
+    action(join_action(repeat1(choice(range("a", "z"),
+                                      range("0", "9"),
+                                      scm_identifier_special_char)),
+                       ""),
+           scm_identifier_syntax_action);
+
+function scm_identifier_syntax_action(ast)
+{
+    return ast;
+}
+
+var scm_compound_syntax =
+    action(wsequence("(", repeat0(scm_expression_syntax), ")"),
+           scm_compound_syntax_action);
+
+function scm_compound_syntax_action(ast)
+{
+    var forms = ast[1];
+    return scm_array_to_cons_list(forms);
+}
+
+var scm_expression_syntax =
+    whitespace(choice(scm_number_syntax,
+                      scm_compound_syntax,
+                      scm_identifier_syntax));
+
+var scm_program_syntax =
+    whitespace(repeat1(scm_expression_syntax));
