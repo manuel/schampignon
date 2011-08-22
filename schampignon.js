@@ -69,6 +69,7 @@ function scm_general_combine(vm, otree, next, tail)
 {
     if (!tail) vm.s = new Scm_frame(next, vm.e, vm.r, vm.u, vm.s);
     vm.r = [];
+    vm.u = scm_nil;
     if (scm_is_applicative(vm.a)) {
         /* For applicatives, make a detour through argument evaluation. */
         var combiner = scm_unwrap(vm.a);
@@ -207,7 +208,8 @@ function Scm_native(js_fun)
 
 Scm_native.prototype.scm_combine = function(vm, args, next, tail)
 {
-    vm.a = this.js_fun.apply(null, scm_cons_list_to_array(args));
+    var argslist = scm_cons_list_to_array(args);
+    vm.a = this.js_fun.apply(null, argslist);
     vm.x = next;
     return true;
 }
@@ -228,17 +230,9 @@ Scm_eval.prototype.scm_combine = function(vm, args, next, tail)
 {
     var expr = scm_compound_elt(args, 0);
     var env = scm_compound_elt(args, 1);
-    scm_compile(vm, env, scm_insn_eval(expr, next, tail), false);
+    vm.e = env;
+    scm_compile(vm, expr, next, tail);
     return true;
-}
-
-function scm_insn_eval(expr, next, tail)
-{
-    return function(vm) {
-        vm.e = vm.a;
-        scm_compile(vm, expr, next, tail);
-        return true;
-    };
 }
 
 /**** Environments ****/

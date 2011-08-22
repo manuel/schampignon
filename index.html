@@ -58,23 +58,30 @@ function do_print(string)
 
 ($define! get-current-environment (wrap ($vau %ignore e e)))
 
+($define! $seq2 
+   ($vau list-of-two env
+      ((wrap ($vau %ignore %ignore (eval (car (cdr list-of-two)) env)))
+       (eval (car list-of-two) env))))
+
 ($define! $sequence
-   ((wrap ($vau $seq2- %ignore
-             ((car $seq2-)
+   ((wrap ($vau $seq2* %ignore
+             ((car $seq2*)
                 ($define! $aux
-                   ($vau x env
-                      ($if (null? (cdr x))
-                           (eval (car x) env)
-                           ((car $seq2-)
-                              (eval (car x) env)
-                              (eval (cons $aux (cdr x)) env)))))
+                   ($vau (head . tail) env
+                      ($if (null? tail)
+                           (eval head env)
+                           ((car $seq2*)
+                              (eval head env)
+                              (eval (cons $aux tail) env)))))
                 ($vau body env
                    ($if (null? body)
                         %inert
                         (eval (cons $aux body) env))))))
-      ($vau f-s env
-         ((wrap ($vau %ignore %ignore (eval (car (cdr f-s)) env)))
-          (eval (car f-s) env)))))
+
+      ($vau first-second* env
+         ((wrap ($vau %ignore %ignore (eval (car (cdr first-second*)) env)))
+          (eval (car first-second*) env)))))
+
 </pre>
 </body>
 </html>
