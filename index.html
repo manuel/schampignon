@@ -23,6 +23,7 @@ scm_update(ground_env, "null?", scm_make_native(scm_nullp));
 scm_update(ground_env, "car", scm_make_native(scm_car));
 scm_update(ground_env, "cdr", scm_make_native(scm_cdr));
 scm_update(ground_env, "cons", scm_make_native(scm_cons));
+scm_update(ground_env, "%ignore", {});
 scm_update(ground_env, "%inert", {});
 scm_update(ground_env, "print", scm_make_native(do_print));
 
@@ -36,6 +37,7 @@ function do_eval()
     var form = forms[i];
     var result;
     try {
+//      do_print("PARSE: " + JSON.stringify(form));
       result = scm_eval(vm, form);
     } catch(e) {
       result = "ERROR: " + e;
@@ -56,29 +58,51 @@ function do_print(string)
   </script>
 <p>Some sample code for playing
 <pre>
-($define! list (wrap ($vau x %ignore x)))
-
-(car (list 1 2 3))
-
-;; evaluate N forms in sequence
-;; (ugly cause no destructuring yet; changes to R-1RK are marked with *)
 ($define! $sequence
-   ((wrap ($vau $seq2* %ignore
-             ((car $seq2*)
+   ((wrap ($vau ($seq2) %ignore
+             ($seq2
                 ($define! $aux
-                   ($vau head-tail* env
-                      ($if (null? (cdr head-tail*))
-                           (eval (car head-tail*) env)
-                           ((car $seq2*)
-                              (eval (car head-tail*) env)
-                              (eval (cons $aux (cdr head-tail*)) env)))))
+                   ($vau (head . tail) env
+                      ($if (null? tail)
+                           (eval head env)
+                           ($seq2
+                              (eval head env)
+                              (eval (cons $aux tail) env)))))
                 ($vau body env
                    ($if (null? body)
                         %inert
                         (eval (cons $aux body) env))))))
-    ($vau list-of-two* env
-       ((wrap ($vau %ignore %ignore (eval (car (cdr list-of-two*)) env)))
-        (eval (car list-of-two*) env)))))
+
+      ($vau (first second) env
+         ((wrap ($vau %ignore %ignore (eval second env)))
+          (eval first env)))))
+
+($define! list (wrap ($vau x %ignore x)))
+
+($define! list*
+   (wrap ($vau args %ignore
+            ($sequence
+               ($define! aux
+                  (wrap ($vau ((head . tail)) %ignore
+                           ($if (null? tail)
+                                head
+                                (cons head (aux tail))))))
+               (aux args)))))
+
+($define! $vau
+   ((wrap ($vau ($vau) %ignore
+             ($vau (formals eformal . body) env
+                (eval (list $vau formals eformal
+                           (cons $sequence body))
+                      env))))
+      $vau))
+
+($define! $lambda
+   ($vau (formals . body) env
+      (wrap (eval (list* $vau formals %ignore body)
+                  env))))
+
+(car (list 1 2 3))
 
 ($sequence (print 1) (print 2) (print 3))
 

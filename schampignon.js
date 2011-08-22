@@ -84,7 +84,7 @@ function Scm_combiner(env, ptree, eformal, body)
 Scm_combiner.prototype.scm_combine = function(vm, otree, next, tail)
 {
     if (!tail) vm.s = new Scm_frame(next, vm.e, vm.s);
-    vm.e = scm_extend(vm.e, vm.a, otree);
+    vm.e = scm_extend(vm.a, otree, vm.e);
     scm_compile(vm, vm.a.body, tail ? next : scm_insn_return, true);
     return true;
 }
@@ -120,7 +120,7 @@ Scm_define.prototype.scm_combine = function(vm, otree, next, tail)
 function scm_insn_define(ptree, next)
 {
     return function(vm) {
-        scm_update(vm.e, ptree, vm.a);
+        scm_match(vm.e, ptree, vm.a);
         vm.x = next;
         return true;
     };
@@ -155,20 +155,9 @@ Scm_eval.prototype.scm_combine = function(vm, args, next, tail)
 {
     var expr = scm_compound_elt(args, 0);
     var env = scm_compound_elt(args, 1);
-    var old_env = vm.e;
     vm.e = env;
-    scm_compile(vm, expr, scm_insn_weird_env_reset(old_env, next), tail);
+    scm_compile(vm, expr, next, tail);
     return true;
-}
-
-/* I'm out of my depth here... */
-function scm_insn_weird_env_reset(old_env, next)
-{
-    return function(vm) {
-        vm.e = old_env;
-        vm.x = next;
-        return true;
-    };
 }
 
 /**** Wrappers ****/
@@ -265,14 +254,29 @@ function scm_update(env, name, value)
     env.bindings[name] = value;
 }
 
-function scm_extend(denv, combiner, otree)
+function scm_extend(combiner, otree, denv)
 {
     var xenv = new Scm_env(combiner.env);
-    /* This should really destructure the operand tree according to
-       the parameter tree. */
-    scm_update(xenv, combiner.ptree, otree);
+    scm_match(xenv, combiner.ptree, otree);
+    // todo: handle %ignore
     scm_update(xenv, combiner.eformal, denv);
     return xenv;
+}
+
+function scm_match(env, formal_tree, actual_tree)
+{
+    if (scm_nullp(formal_tree)) {
+        if (!scm_nullp(actual_tree))
+            scm_error("match failure: expected nil, got " + actual_tree);
+    } else if (scm_is_non_nil_compound(formal_tree)) {
+        scm_match(env, scm_car(formal_tree), scm_car(actual_tree));
+        scm_match(env, scm_cdr(formal_tree), scm_cdr(actual_tree));
+    } else if (scm_is_symbol(formal_tree)) {
+        scm_update(env, formal_tree, actual_tree);
+    } else {
+        scm_error("match failure: invalid formal: " + formal_tree);
+    }
+    // todo: handle %ignore
 }
 
 /**** Forms ****/
@@ -327,9 +331,9 @@ function scm_compound_elt(x, i)
     return scm_car(x);
 }
 
-function scm_array_to_cons_list(array)
+function scm_array_to_cons_list(array, end)
 {
-    var c = scm_nil;
+    var c = end ? end : scm_nil;
     for (var i = array.length; i > 0; i--)
         c = scm_cons(array[i - 1], c);
     return c;
@@ -392,8 +396,8 @@ function scm_number_syntax_action(ast)
 }
 
 var scm_identifier_special_char =
-    choice(// R5RS
-           "-", "&", "!", ":", ".", "=", ">","<", "%", "+", "?", "/", "*", "#",
+    choice(// R5RS sans "."
+           "-", "&", "!", ":", "=", ">","<", "%", "+", "?", "/", "*", "#",
            // Additional
            "$", "_");
 
@@ -409,18 +413,40 @@ function scm_identifier_syntax_action(ast)
     return ast;
 }
 
+var scm_nil_syntax =
+    action("()", scm_nil_syntax_action);
+
+function scm_nil_syntax_action(ast)
+{
+    return scm_nil;
+}
+
+var scm_dot_syntax =
+    action(wsequence(".", scm_expression_syntax),
+           scm_dot_syntax_action);
+
+function scm_dot_syntax_action(ast)
+{
+    return ast[1];
+}
+
 var scm_compound_syntax =
-    action(wsequence("(", repeat0(scm_expression_syntax), ")"),
+    action(wsequence("(",
+                     repeat1(scm_expression_syntax),
+                     optional(scm_dot_syntax),
+                     ")"),
            scm_compound_syntax_action);
 
 function scm_compound_syntax_action(ast)
 {
-    var forms = ast[1];
-    return scm_array_to_cons_list(forms);
+    var exprs = ast[1];
+    var end = ast[2] ? ast[2] : scm_nil;
+    return scm_array_to_cons_list(exprs, end);
 }
 
 var scm_expression_syntax =
     whitespace(choice(scm_number_syntax,
+                      scm_nil_syntax,
                       scm_compound_syntax,
                       scm_identifier_syntax));
 
