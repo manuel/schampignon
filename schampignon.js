@@ -157,12 +157,12 @@ Scm_eval.prototype.scm_combine = function(vm, args, next, tail)
     var env = scm_compound_elt(args, 1);
     var old_env = vm.e;
     vm.e = env;
-    scm_compile(vm, expr, scm_weird_eval_env_reset(old_env, next), tail);
+    scm_compile(vm, expr, scm_insn_weird_env_reset(old_env, next), tail);
     return true;
 }
 
 /* I'm out of my depth here... */
-function scm_weird_eval_env_reset(old_env, next)
+function scm_insn_weird_env_reset(old_env, next)
 {
     return function(vm) {
         vm.e = old_env;
