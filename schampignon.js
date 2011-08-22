@@ -142,11 +142,7 @@ Scm_if.prototype.scm_combine = function(vm, otree, next, tail)
 function scm_insn_test(consequent, alternative, next, tail)
 {
     return function(vm) {
-        if (vm.a) { // needs error if not boolean
-            scm_compile(vm, consequent, next, tail);
-        } else {
-            scm_compile(vm, alternative, next, tail);
-        }
+        scm_compile(vm, vm.a ? consequent : alternative, next, tail);
         return true;
     };
 }
