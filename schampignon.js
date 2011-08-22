@@ -253,7 +253,7 @@ function Scm_env(parent)
 
 function scm_lookup(env, name)
 {
-    var value = scm_just_lookup(env, name);
+    var value = env.bindings[name];
     if (value !== undefined) {
         return value;
     } else {
@@ -264,24 +264,7 @@ function scm_lookup(env, name)
     }
 }
 
-function scm_just_lookup(env, name)
-{
-    return env.bindings[name];
-}
-
 function scm_update(env, name, value)
-{
-    if (scm_just_lookup(env, name) !== undefined) {
-        scm_just_update(env, name, value);
-    } else {
-        if (env.parent)
-            scm_update(env.parent, name, value);
-        else
-            scm_just_update(env, name, value);
-    }
-}
-
-function scm_just_update(env, name, value)
 {
     env.bindings[name] = value;
 }
@@ -291,8 +274,8 @@ function scm_extend(denv, combiner, otree)
     var xenv = new Scm_env(combiner.env);
     /* This should really destructure the operand tree according to
        the parameter tree. */
-    scm_just_update(xenv, combiner.ptree, otree);
-    scm_just_update(xenv, combiner.eformal, denv);
+    scm_update(xenv, combiner.ptree, otree);
+    scm_update(xenv, combiner.eformal, denv);
     return xenv;
 }
 

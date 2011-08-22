@@ -1,3 +1,0 @@
--*- mode: org -*-
-
-* $define! puts bindings in the topmost environment if not found.
