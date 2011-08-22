@@ -1,5 +1,3 @@
 -*- mode: org -*-
 
-* Stack doesn't get popped properly!
-
 * $define! puts bindings in the topmost environment if not found.
