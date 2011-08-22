@@ -311,11 +311,6 @@ function scm_is_non_nil_compound(x)
     return (x instanceof Array);
 }
 
-function scm_compound_operator(x)
-{
-    return scm_car(x);
-}
-
 function scm_nullp(c)
 {
     return c === scm_nil;
