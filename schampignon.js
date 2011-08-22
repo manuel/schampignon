@@ -39,8 +39,8 @@ function scm_compile(vm, form, next, tail)
         vm.x = next;
     } else if (scm_is_compound(form)) {
         var combiner = scm_car(form);
-        var otree = scm_cdr(form);
-        scm_compile(vm, combiner, scm_insn_combine(otree, next, tail), false);
+        var operand_tree = scm_cdr(form);
+        scm_compile(vm, combiner, scm_insn_combine(operand_tree, next, tail), false);
     } else {
         vm.a = form;
         vm.x = next;
@@ -71,9 +71,13 @@ function scm_insn_halt(vm)
 
 function Scm_combiner(env, ptree, eformal, body)
 {
+    // Static lexical environment link
     this.env = env;
+    // Parameter tree
     this.ptree = ptree;
+    // Dynamic lexical environment parameter
     this.eformal = eformal;
+    // Body form
     this.body = body;
 }
 
