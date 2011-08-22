@@ -12,10 +12,6 @@ function Scm_vm(e)
     this.x = null;
     // Environment
     this.e = e;
-    // evaluated operands (aRguments)
-    this.r = [];
-    // Unevaluated operands
-    this.u = scm_nil;
     // Stack
     this.s = null;
 }
@@ -24,8 +20,6 @@ function Scm_frame(x, e, r, u, s)
 {
     this.x = x;
     this.e = e;
-    this.r = r;
-    this.u = u;
     this.s = s;
 }
 
@@ -38,7 +32,6 @@ function scm_eval(vm, form)
     return vm.a;
 }
 
-/* "Compile" is a misnomer. */
 function scm_compile(vm, form, next, tail)
 {
     if (scm_is_symbol(form)) {
@@ -54,7 +47,6 @@ function scm_compile(vm, form, next, tail)
     }
 }
 
-/* Dispatch to scm_combine method of combiner in accumulator. */
 function scm_insn_combine(otree, next, tail)
 {
     return function(vm) {
@@ -62,60 +54,10 @@ function scm_insn_combine(otree, next, tail)
     };
 }
 
-/* This is the scm_combine method of both compound operatives and
-   applicatives.  Built-ins such as $define! and $vau have their own,
-   different methods. */
-function scm_general_combine(vm, otree, next, tail)
-{
-    if (!tail) vm.s = new Scm_frame(next, vm.e, vm.r, vm.u, vm.s);
-    vm.r = [];
-    vm.u = scm_nil;
-    if (scm_is_applicative(vm.a)) {
-        /* For applicatives, make a detour through argument evaluation. */
-        var combiner = scm_unwrap(vm.a);
-        vm.u = otree;
-        vm.x = scm_insn_argument_eval(combiner, next, tail);
-    } else {
-        /* Operatives are entered directly. */
-        vm.e = scm_extend(vm.e, vm.a, otree);
-        scm_compile(vm, vm.a.body, tail ? next : scm_insn_return, true);
-    }
-    return true;
-}
-
-/* Argument evaluation works by ping-ponging between argument_eval and
-   argument_store, until all arguments are evaluated. */
-function scm_insn_argument_eval(combiner, next, tail)
-{
-    return function(vm) {
-        if (scm_is_non_nil_compound(vm.u)) {
-            var operand = scm_car(vm.u);
-            vm.u = scm_cdr(vm.u);
-            scm_compile(vm, operand, scm_insn_argument_store(combiner, next, tail), false);
-            return true;
-        } else {
-            scm_compile(vm, scm_cons(combiner, scm_array_to_cons_list(vm.r)), next, tail);
-            return true;
-        }
-    };
-}
-
-function scm_insn_argument_store(combiner, next, tail)
-{
-    return function(vm) {
-        vm.r.push(vm.a);
-        vm.x = scm_insn_argument_eval(combiner, next, tail);
-        return true;
-    }
-}
-
-/* Pop the stack, restoring the saved registers. */
 function scm_insn_return(vm)
 {
     vm.x = vm.s.x;
     vm.e = vm.s.e;
-    vm.r = vm.s.r;
-    vm.u = vm.s.u;
     vm.s = vm.s.s;
     return true;
 }
@@ -125,9 +67,25 @@ function scm_insn_halt(vm)
     return false;
 }
 
-/**** Built-in Combiners ****/
+/**** Compound Combiners ****/
 
-// ($vau ptree eformal body)
+function Scm_combiner(env, ptree, eformal, body)
+{
+    this.env = env;
+    this.ptree = ptree;
+    this.eformal = eformal;
+    this.body = body;
+}
+
+Scm_combiner.prototype.scm_combine = function(vm, otree, next, tail)
+{
+    if (!tail) vm.s = new Scm_frame(next, vm.e, vm.s);
+    vm.e = scm_extend(vm.e, vm.a, otree);
+    scm_compile(vm, vm.a.body, tail ? next : scm_insn_return, true);
+    return true;
+}
+
+/**** Built-in Combiners ****/
 
 function Scm_vau() {}
 
@@ -141,7 +99,6 @@ Scm_vau.prototype.scm_combine = function(vm, otree, next, tail)
     return true;
 }
 
-// ($define! ptree expr)
 
 function Scm_define() {}
 
@@ -162,77 +119,33 @@ function scm_insn_define(ptree, next)
     };
 }
 
-/**** Compound Combiners ****/
 
-function Scm_combiner(env, ptree, eformal, body)
-{
-    this.env = env;
-    this.ptree = ptree;
-    this.eformal = eformal;
-    this.body = body;
-}
-
-Scm_combiner.prototype.scm_combine = scm_general_combine;
-
-/**** Wrappers (Applicatives) ****/
-
-function Scm_wrapper(combiner)
-{
-    this.combiner = combiner;
-}
-
-Scm_wrapper.prototype.scm_combine = scm_general_combine;
-
-function scm_wrap(combiner)
-{
-    return new Scm_wrapper(combiner);
-}
-
-function scm_unwrap(applicative)
-{
-    scm_assert(scm_is_applicative(applicative));
-    return applicative.combiner;
-}
-
-function scm_is_applicative(combiner)
-{
-    return (combiner instanceof Scm_wrapper);
-}
-
-/**** Native applicatives ****/
-
-function Scm_native(js_fun)
-{
-    this.js_fun = js_fun;
-}
-
-Scm_native.prototype.scm_combine = function(vm, args, next, tail)
-{
-    var argslist = scm_cons_list_to_array(args);
-    vm.a = this.js_fun.apply(null, argslist);
-    vm.x = next;
-    return true;
-}
-
-function scm_make_native(js_fun)
-{
-    return scm_wrap(new Scm_native(js_fun));
-}
-
-/**** eval ****/
-
-/* Needs to be wrapped. */
 function Scm_eval() {}
 
-/* Eval is slightly tricky because the expression has to be evaluated
-   in tail context. */
 Scm_eval.prototype.scm_combine = function(vm, args, next, tail)
 {
     var expr = scm_compound_elt(args, 0);
     var env = scm_compound_elt(args, 1);
-    vm.e = env;
-    scm_compile(vm, expr, next, tail);
+    scm_compile(vm, env, scm_insn_eval1(expr, next, tail), false);
     return true;
+}
+
+function scm_insn_eval1(expr, next, tail)
+{
+    return function(vm) {
+        var env = vm.a;
+        scm_compile(vm, expr, scm_insn_eval2(env, next, tail), false);
+        return true;
+    };
+}
+
+function scm_insn_eval2(env, next, tail)
+{
+    return function(vm) {
+        var expr = vm.a;
+        scm_compile(vm, expr, next, tail);
+        return true;
+    };
 }
 
 /**** Environments ****/
