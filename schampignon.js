@@ -16,7 +16,7 @@ function Scm_vm(e)
     this.s = null;
 }
 
-function Scm_frame(x, e, r, u, s)
+function Scm_frame(x, e, s)
 {
     this.x = x;
     this.e = e;
