@@ -122,6 +122,31 @@ function scm_insn_define(ptree, next)
     };
 }
 
+/* $if */
+
+function Scm_if() {}
+
+Scm_if.prototype.scm_combine = function(vm, otree, next, tail)
+{
+    var test = scm_compound_elt(otree, 0);
+    var consequent = scm_compound_elt(otree, 1);
+    var alternative = scm_compound_elt(otree, 2);
+    scm_compile(vm, test, scm_insn_test(consequent, alternative, next, tail), false);
+    return true;
+}
+
+function scm_insn_test(consequent, alternative, next, tail)
+{
+    return function(vm) {
+        if (vm.a) { // needs error if not boolean
+            scm_compile(vm, consequent, next, tail);
+        } else {
+            scm_compile(vm, alternative, next, tail);
+        }
+        return true;
+    };
+}
+
 /* eval */
 
 function Scm_eval() {}
@@ -231,7 +256,7 @@ function scm_lookup(env, name)
         if (env.parent)
             return scm_lookup(env.parent, name);
         else
-            scm_error("undefined variable");
+            scm_error("undefined variable:" + name);
     }
 }
 

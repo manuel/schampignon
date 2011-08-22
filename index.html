@@ -15,6 +15,7 @@
 var ground_env = new Scm_env();
 scm_just_update(ground_env, "$define!", new Scm_define());
 scm_just_update(ground_env, "$vau", new Scm_vau());
+scm_just_update(ground_env, "$if", new Scm_if());
 scm_just_update(ground_env, "eval", scm_wrap(new Scm_eval()));
 scm_just_update(ground_env, "wrap", scm_make_native(scm_wrap));
 scm_just_update(ground_env, "unwrap", scm_make_native(scm_unwrap));
@@ -57,6 +58,8 @@ function do_print(string)
 <pre>
 ($define! list (wrap ($vau x %ignore x)))
 
+(car (list 1 2 3))
+
 ($define! get-current-environment (wrap ($vau %ignore e e)))
 
 ;; evaluate 2 forms in sequence
@@ -64,6 +67,27 @@ function do_print(string)
    ($vau list-of-two env
       ((wrap ($vau %ignore %ignore (eval (car (cdr list-of-two)) env)))
        (eval (car list-of-two) env))))
+
+;; evaluate N forms in sequence
+;; (ugly cause no destructuring yet; changes to R-1RK are marked with *)
+($define! $sequence
+   ((wrap ($vau $seq2* %ignore
+             ((car $seq2*)
+                ($define! $aux
+                   ($vau head-tail* env
+                      ($if (null? (cdr head-tail*))
+                           (eval (car head-tail*) env)
+                           ((car $seq2*)
+                              (eval (car head-tail*) env)
+                              (eval (cons $aux (cdr head-tail*)) env)))))
+                ($vau body env
+                   ($if (null? body)
+                        %inert
+                        (eval (cons $aux body) env))))))
+     $seq2))
+
+($sequence (print 1) (print 2) (print 3))
+
 </pre>
 </body>
 </html>
