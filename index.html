@@ -60,14 +60,6 @@ function do_print(string)
 
 (car (list 1 2 3))
 
-($define! get-current-environment (wrap ($vau %ignore e e)))
-
-;; evaluate 2 forms in sequence
-($define! $seq2 
-   ($vau list-of-two env
-      ((wrap ($vau %ignore %ignore (eval (car (cdr list-of-two)) env)))
-       (eval (car list-of-two) env))))
-
 ;; evaluate N forms in sequence
 ;; (ugly cause no destructuring yet; changes to R-1RK are marked with *)
 ($define! $sequence
@@ -84,7 +76,9 @@ function do_print(string)
                    ($if (null? body)
                         %inert
                         (eval (cons $aux body) env))))))
-     $seq2))
+    ($vau list-of-two* env
+       ((wrap ($vau %ignore %ignore (eval (car (cdr list-of-two*)) env)))
+        (eval (car list-of-two*) env)))))
 
 ($sequence (print 1) (print 2) (print 3))
 
