@@ -15,19 +15,27 @@
 var ground_env = new Scm_env();
 scm_just_update(ground_env, "$define!", new Scm_define());
 scm_just_update(ground_env, "$vau", new Scm_vau());
-scm_just_update(ground_env, "eval", new Scm_eval());
+scm_just_update(ground_env, "eval", scm_wrap(new Scm_eval()));
+scm_just_update(ground_env, "wrap", scm_make_native(scm_wrap));
+scm_just_update(ground_env, "unwrap", scm_make_native(scm_unwrap));
+scm_just_update(ground_env, "null?", scm_make_native(scm_nullp));
+scm_just_update(ground_env, "car", scm_make_native(scm_car));
+scm_just_update(ground_env, "cdr", scm_make_native(scm_cdr));
+scm_just_update(ground_env, "cons", scm_make_native(scm_cons));
 scm_just_update(ground_env, "%inert", {});
+scm_just_update(ground_env, "print", scm_make_native(do_print));
 
 var vm = new Scm_vm(new Scm_env(ground_env));
 
 function do_eval()
 {
   var forms = scm_parse(document.forms.evalform.input.value);
-  do_print(document.forms.evalform.input.value);
+  do_print("> " + document.forms.evalform.input.value);
   for (var i = 0; i < forms.length; i++) {
+    var form = forms[i];
     var result;
     try {
-      result = scm_eval(vm, forms[i]);
+      result = scm_eval(vm, form);
     } catch(e) {
       result = "ERROR: " + e;
     }
@@ -51,30 +59,11 @@ function do_print(string)
 
 ($define! get-current-environment (wrap ($vau %ignore e e)))
 
+;; evaluate 2 forms in sequence
 ($define! $seq2 
    ($vau list-of-two env
       ((wrap ($vau %ignore %ignore (eval (car (cdr list-of-two)) env)))
        (eval (car list-of-two) env))))
-
-($define! $sequence
-   ((wrap ($vau $seq2* %ignore
-             ((car $seq2*)
-                ($define! $aux
-                   ($vau (head . tail) env
-                      ($if (null? tail)
-                           (eval head env)
-                           ((car $seq2*)
-                              (eval head env)
-                              (eval (cons $aux tail) env)))))
-                ($vau body env
-                   ($if (null? body)
-                        %inert
-                        (eval (cons $aux body) env))))))
-
-      ($vau first-second* env
-         ((wrap ($vau %ignore %ignore (eval (car (cdr first-second*)) env)))
-          (eval (car first-second*) env)))))
-
 </pre>
 </body>
 </html>

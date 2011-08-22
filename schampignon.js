@@ -87,6 +87,8 @@ Scm_combiner.prototype.scm_combine = function(vm, otree, next, tail)
 
 /**** Built-in Combiners ****/
 
+/* $vau */
+
 function Scm_vau() {}
 
 Scm_vau.prototype.scm_combine = function(vm, otree, next, tail)
@@ -99,6 +101,7 @@ Scm_vau.prototype.scm_combine = function(vm, otree, next, tail)
     return true;
 }
 
+/* $define! */
 
 function Scm_define() {}
 
@@ -119,6 +122,7 @@ function scm_insn_define(ptree, next)
     };
 }
 
+/* eval */
 
 function Scm_eval() {}
 
@@ -126,26 +130,88 @@ Scm_eval.prototype.scm_combine = function(vm, args, next, tail)
 {
     var expr = scm_compound_elt(args, 0);
     var env = scm_compound_elt(args, 1);
-    scm_compile(vm, env, scm_insn_eval1(expr, next, tail), false);
+    var old_env = vm.e;
+    vm.e = env;
+    scm_compile(vm, expr, scm_weird_eval_env_reset(old_env, next), tail);
     return true;
 }
 
-function scm_insn_eval1(expr, next, tail)
+/* I'm out of my depth here... */
+function scm_weird_eval_env_reset(old_env, next)
 {
     return function(vm) {
-        var env = vm.a;
-        scm_compile(vm, expr, scm_insn_eval2(env, next, tail), false);
+        vm.e = old_env;
+        vm.x = next;
         return true;
     };
 }
 
-function scm_insn_eval2(env, next, tail)
+/**** Wrappers ****/
+
+function Scm_wrapper(combiner)
+{
+    this.combiner = combiner;
+}
+
+Scm_wrapper.prototype.scm_combine = function(vm, otree, next, tail)
+{
+    vm.x = scm_insn_argument_eval(scm_unwrap(this), otree, [], next, tail);
+    return true;
+}
+
+function scm_insn_argument_eval(combiner, otree, args, next, tail)
 {
     return function(vm) {
-        var expr = vm.a;
-        scm_compile(vm, expr, next, tail);
+        if (scm_nullp(otree)) {
+            var c = scm_cons(combiner, scm_array_to_cons_list(args));
+            scm_compile(vm, c, next, tail);
+        } else {
+            var o = scm_car(otree);
+            otree = scm_cdr(otree);
+            next = scm_insn_argument_store(combiner, otree, args, next, tail);
+            scm_compile(vm, o, next, false);
+        }
         return true;
     };
+}
+
+function scm_insn_argument_store(combiner, otree, args, next, tail)
+{
+    return function(vm) {
+        args.push(vm.a);
+        vm.x = scm_insn_argument_eval(combiner, otree, args, next, tail);
+        return true;
+    };
+}
+
+function scm_wrap(combiner)
+{
+    return new Scm_wrapper(combiner);
+}
+
+function scm_unwrap(wrapper)
+{
+    return wrapper.combiner;
+}
+
+/**** Native Combiners ****/
+
+function Scm_native(js_fun)
+{
+    this.js_fun = js_fun;
+}
+
+Scm_native.prototype.scm_combine = function(vm, args, next, tail)
+{
+    var argslist = scm_cons_list_to_array(args);
+    vm.a = this.js_fun.apply(null, argslist);
+    vm.x = next;
+    return true;
+}
+
+function scm_make_native(js_fun)
+{
+    return scm_wrap(new Scm_native(js_fun));
 }
 
 /**** Environments ****/
@@ -291,6 +357,7 @@ function scm_error(msg)
 
 /**** Parser ****/
 
+/* Returns an array of cons lists of the forms in the string. */
 function scm_parse(string)
 {
     var result = scm_program_syntax(ps(string));
