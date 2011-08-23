@@ -12,7 +12,7 @@
     <input type="submit" value="eval">
   </form>
   <script type="text/javascript">
-var ground_env = new Scm_env();
+var ground_env = scm_make_env();
 scm_update(ground_env, "$define!", new Scm_define());
 scm_update(ground_env, "$vau", new Scm_vau());
 scm_update(ground_env, "$if", new Scm_if());
@@ -23,11 +23,14 @@ scm_update(ground_env, "null?", scm_make_native(scm_nullp));
 scm_update(ground_env, "car", scm_make_native(scm_car));
 scm_update(ground_env, "cdr", scm_make_native(scm_cdr));
 scm_update(ground_env, "cons", scm_make_native(scm_cons));
+scm_update(ground_env, "make-environment", scm_make_native(scm_make_env));
+scm_update(ground_env, "#t", true);
+scm_update(ground_env, "#f", false);
 scm_update(ground_env, "%ignore", {});
 scm_update(ground_env, "%inert", {});
 scm_update(ground_env, "print", scm_make_native(do_print));
 
-var vm = new Scm_vm(new Scm_env(ground_env));
+var vm = new Scm_vm(scm_make_env(ground_env));
 
 function do_eval()
 {
@@ -101,6 +104,26 @@ function do_print(string)
    ($vau (formals . body) env
       (wrap (eval (list* $vau formals %ignore body)
                   env))))
+
+($define! apply
+   ($lambda (appv arg . opt)
+      (eval (cons (unwrap appv) arg)
+            ($if (null? opt)
+                 (make-environment)
+                 (car opt)))))
+
+($define! $cond
+   ($vau clauses env
+
+      ($define! aux
+         ($lambda ((test . body) . clauses)
+            ($if (eval test env)
+                 (apply (wrap $sequence) body env)
+                 (apply (wrap $cond) clauses env))))
+
+      ($if (null? clauses)
+           %inert
+           (apply aux clauses))))
 
 (car (list 1 2 3))
 

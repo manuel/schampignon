@@ -236,6 +236,11 @@ function Scm_env(parent)
     this.bindings = {};
 }
 
+function scm_make_env(parent)
+{
+    return new Scm_env(parent);
+}
+
 function scm_lookup(env, name)
 {
     var value = env.bindings[name];
@@ -256,7 +261,7 @@ function scm_update(env, name, value)
 
 function scm_extend(combiner, otree, denv)
 {
-    var xenv = new Scm_env(combiner.env);
+    var xenv = scm_make_env(combiner.env);
     scm_match(xenv, combiner.ptree, otree);
     // todo: handle %ignore
     scm_update(xenv, combiner.eformal, denv);
