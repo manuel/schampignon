@@ -1,9 +1,13 @@
 Schampignon is an experimental interpreter, related to the
 Virtua programming language: http://manuel.github.com/virtua
 
-The master branch is Scheme-like.
+There are multiple branches:
 
-The fexpr branch is Kernel-like.
+* The master branch is an interpreter for a Kernel-like language, and
+  it where current work happens.
 
-The fexpr-nt branch is Kernel-like, but with an entirely different
-implementation.
+* The dybvig branch is a the original starting point, a port of a
+  Scheme interpreter by Kent Dybvig.
+
+* The fexpr branch is a reworking of the dybvig branch to support
+  fexprs.
