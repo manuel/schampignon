@@ -4,7 +4,7 @@ Virtua programming language: http://manuel.github.com/virtua
 There are multiple branches:
 
 * The master branch is an interpreter for a Kernel-like language, and
-  it where current work happens.
+  is where current work happens.
 
 * The dybvig branch is the original starting point, a port of a Scheme
   interpreter by Kent Dybvig.
