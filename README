@@ -6,8 +6,8 @@ There are multiple branches:
 * The master branch is an interpreter for a Kernel-like language, and
   it where current work happens.
 
-* The dybvig branch is a the original starting point, a port of a
-  Scheme interpreter by Kent Dybvig.
+* The dybvig branch is the original starting point, a port of a Scheme
+  interpreter by Kent Dybvig.
 
 * The fexpr branch is a reworking of the dybvig branch to support
-  fexprs.
+  fexprs, but it's not really functional in any interesting sense.
