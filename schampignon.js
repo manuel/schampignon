@@ -81,12 +81,46 @@ function Scm_combiner(env, ptree, eformal, body)
     this.body = body;
 }
 
-Scm_combiner.prototype.scm_combine = function(vm, otree, next, tail)
+Scm_combiner.prototype.scm_combine = scm_general_combine;
+
+function scm_general_combine(vm, otree, next, tail)
 {
-    if (!tail) vm.s = new Scm_frame(next, vm.e, vm.s);
-    vm.e = scm_extend(vm.a, otree, vm.e);
-    scm_compile(vm, vm.a.body, tail ? next : scm_insn_return, true);
+    if (!tail) {
+        vm.s = new Scm_frame(next, vm.e, vm.s);
+        next = scm_insn_return;
+    }
+    if (scm_is_applicative(vm.a)) {
+        vm.x = scm_insn_argument_eval(scm_unwrap(vm.a), otree, [], next);
+    } else {
+        vm.e = scm_extend(vm.a, otree, vm.e);
+        scm_compile(vm, vm.a.body, next, true);
+    }
     return true;
+}
+
+function scm_insn_argument_eval(combiner, otree, args, next)
+{
+    return function(vm) {
+        if (scm_nullp(otree)) {
+            var combination = scm_cons(combiner, scm_array_to_cons_list(args));
+            scm_compile(vm, combination, next, true);
+        } else {
+            var o = scm_car(otree);
+            otree = scm_cdr(otree);
+            next = scm_insn_argument_store(combiner, otree, args, next);
+            scm_compile(vm, o, next, false);
+        }
+        return true;
+    };
+}
+
+function scm_insn_argument_store(combiner, otree, args, next)
+{
+    return function(vm) {
+        args.push(vm.a);
+        vm.x = scm_insn_argument_eval(combiner, otree, args, next);
+        return true;
+    };
 }
 
 /**** Built-in Combiners ****/
@@ -160,6 +194,32 @@ Scm_eval.prototype.scm_combine = function(vm, args, next, tail)
     return true;
 }
 
+/* call/cc */
+
+function Scm_callcc() {}
+
+Scm_callcc.prototype.scm_combine = function(vm, args, next, tail)
+{
+    var fun = scm_compound_elt(args, 0);
+    var k = scm_wrap(new Scm_cont(vm.s));
+    scm_compile(vm, scm_cons(fun, scm_cons(k, scm_nil)), next, tail);
+    return true;
+}
+
+function Scm_cont(s)
+{
+    this.s = s;
+}
+
+Scm_cont.prototype.scm_combine = function(vm, args, next, tail)
+{
+    var value = scm_compound_elt(args, 0);
+    vm.a = value;
+    vm.x = scm_insn_return;
+    vm.s = this.s;
+    return true;
+}
+
 /**** Wrappers ****/
 
 function Scm_wrapper(combiner)
@@ -167,36 +227,7 @@ function Scm_wrapper(combiner)
     this.combiner = combiner;
 }
 
-Scm_wrapper.prototype.scm_combine = function(vm, otree, next, tail)
-{
-    vm.x = scm_insn_argument_eval(scm_unwrap(this), otree, [], next, tail);
-    return true;
-}
-
-function scm_insn_argument_eval(combiner, otree, args, next, tail)
-{
-    return function(vm) {
-        if (scm_nullp(otree)) {
-            var c = scm_cons(combiner, scm_array_to_cons_list(args));
-            scm_compile(vm, c, next, tail);
-        } else {
-            var o = scm_car(otree);
-            otree = scm_cdr(otree);
-            next = scm_insn_argument_store(combiner, otree, args, next, tail);
-            scm_compile(vm, o, next, false);
-        }
-        return true;
-    };
-}
-
-function scm_insn_argument_store(combiner, otree, args, next, tail)
-{
-    return function(vm) {
-        args.push(vm.a);
-        vm.x = scm_insn_argument_eval(combiner, otree, args, next, tail);
-        return true;
-    };
-}
+Scm_wrapper.prototype.scm_combine = scm_general_combine;
 
 function scm_wrap(combiner)
 {
@@ -206,6 +237,16 @@ function scm_wrap(combiner)
 function scm_unwrap(wrapper)
 {
     return wrapper.combiner;
+}
+
+function scm_is_applicative(combiner)
+{
+    return (combiner instanceof Scm_wrapper);
+}
+
+function scm_is_operative(combiner)
+{
+    return !scm_is_applicative(combiner);
 }
 
 /**** Native Combiners ****/

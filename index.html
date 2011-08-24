@@ -17,6 +17,7 @@ scm_update(ground_env, "$define!", new Scm_define());
 scm_update(ground_env, "$vau", new Scm_vau());
 scm_update(ground_env, "$if", new Scm_if());
 scm_update(ground_env, "eval", scm_wrap(new Scm_eval()));
+scm_update(ground_env, "call/cc", scm_wrap(new Scm_callcc()));
 scm_update(ground_env, "wrap", scm_make_native(scm_wrap));
 scm_update(ground_env, "unwrap", scm_make_native(scm_unwrap));
 scm_update(ground_env, "null?", scm_make_native(scm_nullp));
@@ -61,6 +62,9 @@ function do_print(string)
   </script>
 <p>Some sample code for playing
 <pre>
+($define! f ($vau (k) e ((eval k e) 12)))
+(call/cc f)
+
 ($define! $sequence
    ((wrap ($vau ($seq2) %ignore
              ($seq2
