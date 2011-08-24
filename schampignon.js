@@ -67,7 +67,7 @@ function scm_insn_halt(vm)
     return false;
 }
 
-/**** Compound Combiners ****/
+/**** Compound Combiners & Applicatives ****/
 
 function Scm_combiner(env, ptree, eformal, body)
 {
@@ -81,7 +81,14 @@ function Scm_combiner(env, ptree, eformal, body)
     this.body = body;
 }
 
+function Scm_wrapper(combiner)
+{
+    // Underlying combiner
+    this.combiner = combiner;
+}
+
 Scm_combiner.prototype.scm_combine = scm_general_combine;
+Scm_wrapper.prototype.scm_combine  = scm_general_combine;
 
 function scm_general_combine(vm, otree, next, tail)
 {
@@ -90,6 +97,11 @@ function scm_general_combine(vm, otree, next, tail)
         next = scm_insn_return;
     }
     if (scm_is_applicative(vm.a)) {
+        /* For an applicative, we take a detour through argument
+           evaluation.  This ping-pongs between scm_insn_argument_eval
+           and scm_insn_argument_store, destructuring the operand
+           tree, and building up the arguments list, until the operand
+           tree is empty. */
         vm.x = scm_insn_argument_eval(scm_unwrap(vm.a), otree, [], next);
     } else {
         vm.e = scm_extend(vm.a, otree, vm.e);
@@ -103,12 +115,18 @@ function scm_insn_argument_eval(combiner, otree, args, next)
     return function(vm) {
         if (scm_nullp(otree)) {
             var combination = scm_cons(combiner, scm_array_to_cons_list(args));
+            /* After argument evaluation of an original applicative
+               combination, tail-call the new combination.  If the
+               original combination was not a tail call, it has
+               created a new frame, which we can reuse.  If the
+               original combination was a tail call, it's the same:
+               just reuse its frame. */
             scm_compile(vm, combination, next, true);
         } else {
-            var o = scm_car(otree);
+            var operand = scm_car(otree);
             otree = scm_cdr(otree);
             next = scm_insn_argument_store(combiner, otree, args, next);
-            scm_compile(vm, o, next, false);
+            scm_compile(vm, operand, next, false);
         }
         return true;
     };
@@ -218,35 +236,6 @@ Scm_cont.prototype.scm_combine = function(vm, args, next, tail)
     vm.x = scm_insn_return;
     vm.s = this.s;
     return true;
-}
-
-/**** Wrappers ****/
-
-function Scm_wrapper(combiner)
-{
-    this.combiner = combiner;
-}
-
-Scm_wrapper.prototype.scm_combine = scm_general_combine;
-
-function scm_wrap(combiner)
-{
-    return new Scm_wrapper(combiner);
-}
-
-function scm_unwrap(wrapper)
-{
-    return wrapper.combiner;
-}
-
-function scm_is_applicative(combiner)
-{
-    return (combiner instanceof Scm_wrapper);
-}
-
-function scm_is_operative(combiner)
-{
-    return !scm_is_applicative(combiner);
 }
 
 /**** Native Combiners ****/
@@ -397,6 +386,26 @@ function scm_cons_list_to_array(c)
 }
 
 /**** Utilities ****/
+
+function scm_wrap(combiner)
+{
+    return new Scm_wrapper(combiner);
+}
+
+function scm_unwrap(wrapper)
+{
+    return wrapper.combiner;
+}
+
+function scm_is_applicative(combiner)
+{
+    return (combiner instanceof Scm_wrapper);
+}
+
+function scm_is_operative(combiner)
+{
+    return !scm_is_applicative(combiner);
+}
 
 function scm_assert(b)
 {
