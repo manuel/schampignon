@@ -37,7 +37,7 @@ scm_update(ground_env, "print", scm_make_native(do_print));
 // SCHHBBOS
 scm_update(ground_env, "make-vtable", scm_make_native(scm_make_vtable));
 scm_update(ground_env, "make-instance", scm_make_native(scm_make_instance));
-scm_update(ground_env, "bind-method", scm_make_native(scm_bind_method));
+scm_update(ground_env, "bind-method!", scm_make_native(scm_bind_method));
 scm_update(ground_env, "lookup-method", scm_make_native(scm_lookup_method));
 scm_update(ground_env, "set-slot!", scm_make_native(scm_set_slot));
 scm_update(ground_env, "get-slot", scm_make_native(scm_get_slot));
@@ -50,12 +50,12 @@ function do_eval(forms)
   for (var i = 0; i < forms.length; i++) {
     var form = forms[i];
     var result;
-//    try {
+    try {
 //      do_print("PARSE: " + JSON.stringify(form));
       result = scm_eval(vm, form);
-//    } catch(e) {
-//      result = "ERROR: " + e;
-//    }
+    } catch(e) {
+      result = "ERROR: " + e;
+    }
     do_print(result);
   }
   return false;
@@ -143,6 +143,40 @@ This should print 9.
       (wrap (eval (list* $vau formals %ignore body)
                   env))))
 
+($define! car ($lambda ((x . %ignore)) x))
+($define! cdr ($lambda ((%ignore . x)) x))
+
+($define! caar ($lambda (((x . %ignore) . %ignore)) x))
+($define! cdar ($lambda (((%ignore . x) . %ignore)) x))
+($define! cadr ($lambda ((%ignore . (x . %ignore))) x))
+($define! cddr ($lambda ((%ignore . (%ignore . x))) x))
+
+($define! caaar ($lambda ((((x . %ignore) . %ignore) . %ignore)) x))
+($define! cdaar ($lambda ((((%ignore . x) . %ignore) . %ignore)) x))
+($define! cadar ($lambda (((%ignore . (x . %ignore)) . %ignore)) x))
+($define! cddar ($lambda (((%ignore . (%ignore . x)) . %ignore)) x))
+($define! caadr ($lambda ((%ignore . ((x . %ignore) . %ignore))) x))
+($define! cdadr ($lambda ((%ignore . ((%ignore . x) . %ignore))) x))
+($define! caddr ($lambda ((%ignore . (%ignore . (x . %ignore)))) x))
+($define! cdddr ($lambda ((%ignore . (%ignore . (%ignore . x)))) x))
+
+($define! caaaar ($lambda (((((x . %ignore) . %ignore) . %ignore). %ignore))x))
+($define! cdaaar ($lambda (((((%ignore . x) . %ignore) . %ignore). %ignore))x))
+($define! cadaar ($lambda ((((%ignore . (x . %ignore)) . %ignore). %ignore))x))
+($define! cddaar ($lambda ((((%ignore . (%ignore . x)) . %ignore). %ignore))x))
+($define! caadar ($lambda (((%ignore . ((x . %ignore) . %ignore)). %ignore))x))
+($define! cdadar ($lambda (((%ignore . ((%ignore . x) . %ignore)). %ignore))x))
+($define! caddar ($lambda (((%ignore . (%ignore . (x . %ignore))). %ignore))x))
+($define! cdddar ($lambda (((%ignore . (%ignore . (%ignore . x))). %ignore))x))
+($define! caaadr ($lambda ((%ignore .(((x . %ignore) . %ignore) . %ignore)))x))
+($define! cdaadr ($lambda ((%ignore .(((%ignore . x) . %ignore) . %ignore)))x))
+($define! cadadr ($lambda ((%ignore .((%ignore . (x . %ignore)) . %ignore)))x))
+($define! cddadr ($lambda ((%ignore .((%ignore . (%ignore . x)) . %ignore)))x))
+($define! caaddr ($lambda ((%ignore .(%ignore . ((x . %ignore) . %ignore))))x))
+($define! cdaddr ($lambda ((%ignore .(%ignore . ((%ignore . x) . %ignore))))x))
+($define! cadddr ($lambda ((%ignore .(%ignore . (%ignore . (x . %ignore)))))x))
+($define! cddddr ($lambda ((%ignore .(%ignore . (%ignore . (%ignore . x)))))x))
+
 ($define! apply
    ($lambda (appv arg . opt)
       (eval (cons (unwrap appv) arg)
@@ -188,17 +222,19 @@ This should print 9.
 ($define! $quote ($vau (x) %ignore x))
 
 ($define! map
-   ($lambda (fun list)
-      ($if (null? list)
+   ($lambda (fun lst)
+      ($if (null? lst)
            ()
-           (cons (fun (car list)) (map fun (cdr list))))))
+           (cons (fun (car lst)) (map fun (cdr lst))))))
 
 ($define! send-message
    ($lambda (obj message . args)
       ($let ((method (lookup-method obj message)))
          (apply method (list* self args)))))
 
-
+</pre>
+<h2>Not-a-lude</h2>
+<pre>
 (comment delimited control)
 
 ($define! prompt-vtable (make-vtable))
@@ -271,7 +307,7 @@ This should print 9.
    ($lambda ()
       (make-instance empty-seq-vtable)))
 
-(bind-method empty-seq-vtable ($quote underflow)
+(bind-method! empty-seq-vtable ($quote underflow)
    ($lambda (self v)
       v))
 
@@ -282,7 +318,7 @@ This should print 9.
          (set-slot! inst ($quote mk*) mk*)
          inst)))
 
-(bind-method push-p-vtable ($quote underflow)
+(bind-method! push-p-vtable ($quote underflow)
    ($lambda (self v)
       ($set! the-env mk (get-slot self ($quote mk*)))
       (underflow v)))
@@ -294,7 +330,7 @@ This should print 9.
          (set-slot! inst ($quote mk*) mk*)
          inst)))
 
-(bind-method push-seg-vtable ($quote underflow)
+(bind-method! push-seg-vtable ($quote underflow)
    ($lambda (self v)
       ($set! the-env mk (get-slot self ($quote mk*)))
       ((get-slot self ($quote k)) v)))
@@ -304,11 +340,11 @@ This should print 9.
    ($lambda (p mk)
       (send-message mk ($quote do-split-seq) p)))
 
-(bind-method empty-seq-vtable ($quote do-split-seq)
+(bind-method! empty-seq-vtable ($quote do-split-seq)
    ($lambda (self p)
       (error ($quote prompt-not-found))))
 
-(bind-method push-p-vtable ($quote do-split-seq)
+(bind-method! push-p-vtable ($quote do-split-seq)
    ($lambda (self p)
       ($let ((p# (get-slot self ($quote p)))
              (sk (get-slot self ($quote mk*))))
@@ -317,7 +353,7 @@ This should print 9.
                (list (push-p p# subk) sk#))
             (list (empty-seq) sk)))))
 
-(bind-method push-seg-vtable ($quote do-split-seq)
+(bind-method! push-seg-vtable ($quote do-split-seq)
    ($lambda (self p)
       ($let ((seg (get-slot self ($quote k)))
              (sk (get-slot self ($quote mk*))))
@@ -329,17 +365,17 @@ This should print 9.
    ($lambda (mk mk*)
       (send-message mk ($quote do-append-seq) mk*)))
 
-(bind-method empty-seq-vtable ($quote do-append-seq)
+(bind-method! empty-seq-vtable ($quote do-append-seq)
    ($lambda (self mk*)
       mk*))
 
-(bind-method push-p-vtable ($quote do-append-seq)
+(bind-method! push-p-vtable ($quote do-append-seq)
    ($lambda (self mk*)
       ($let ((p (get-slot self ($quote p)))
              (sk (get-slot self ($quote mk*))))
          (push-p p (append-seq sk mk*)))))
 
-(bind-method push-seg-vtable ($quote do-append-seq)
+(bind-method! push-seg-vtable ($quote do-append-seq)
    ($lambda (self mk*)
       ($let ((seg (get-slot self ($quote k)))
              (sk (get-slot self ($quote mk*))))

@@ -37,7 +37,7 @@ function scm_compile(vm, form, next, tail)
     if (scm_is_symbol(form)) {
         vm.a = scm_lookup(vm.e, form);
         vm.x = next;
-    } else if (scm_is_compound(form)) {
+    } else if (scm_is_non_nil_compound(form)) {
         var combiner = scm_car(form);
         var operand_tree = scm_cdr(form);
         scm_compile(vm, combiner, scm_insn_combine(operand_tree, next, tail), false);
