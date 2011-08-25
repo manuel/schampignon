@@ -39,8 +39,8 @@ function scm_compile(vm, form, next, tail)
         vm.x = next;
     } else if (scm_is_pair(form)) {
         var combiner = scm_car(form);
-        var operand_tree = scm_cdr(form);
-        scm_compile(vm, combiner, scm_insn_combine(operand_tree, next, tail), false);
+        var otree = scm_cdr(form);
+        scm_compile(vm, combiner, scm_insn_combine(otree, next, tail), false);
     } else {
         vm.a = form;
         vm.x = next;
@@ -130,10 +130,8 @@ function scm_insn_argument_eval(combiner, otree, args, next)
             var combination = scm_cons(combiner, scm_array_to_cons_list(args));
             scm_compile(vm, combination, next, true);
         } else {
-            var operand = scm_car(otree);
-            otree = scm_cdr(otree);
-            next = scm_insn_argument_store(combiner, otree, args, next);
-            scm_compile(vm, operand, next, false);
+            next = scm_insn_argument_store(combiner, scm_cdr(otree), args, next);
+            scm_compile(vm, scm_car(otree), next, false);
         }
         return true;
     };
