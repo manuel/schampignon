@@ -37,7 +37,7 @@ function scm_compile(vm, form, next, tail)
     if (scm_is_symbol(form)) {
         vm.a = scm_lookup(vm.e, form);
         vm.x = next;
-    } else if (scm_is_non_nil_compound(form)) {
+    } else if (scm_is_pair(form)) {
         var combiner = scm_car(form);
         var operand_tree = scm_cdr(form);
         scm_compile(vm, combiner, scm_insn_combine(operand_tree, next, tail), false);
@@ -347,7 +347,7 @@ function scm_match(env, formal_tree, actual_tree)
     if (scm_nullp(formal_tree)) {
         if (!scm_nullp(actual_tree))
             scm_error("match failure: expected nil, got " + actual_tree);
-    } else if (scm_is_non_nil_compound(formal_tree)) {
+    } else if (scm_is_pair(formal_tree)) {
         scm_match(env, scm_car(formal_tree), scm_car(actual_tree));
         scm_match(env, scm_cdr(formal_tree), scm_cdr(actual_tree));
     } else if (scm_is_symbol(formal_tree)) {
@@ -369,13 +369,13 @@ function scm_cons(car, cdr)
 
 function scm_car(cons)
 {
-    scm_assert(scm_is_non_nil_compound(cons));
+    scm_assert(scm_is_pair(cons));
     return cons[0];
 }
 
 function scm_cdr(cons)
 {
-    scm_assert(scm_is_non_nil_compound(cons));
+    scm_assert(scm_is_pair(cons));
     return cons[1];
 }
 
@@ -386,10 +386,10 @@ function scm_is_symbol(x)
 
 function scm_is_compound(x)
 {
-    return (scm_nullp(x)) || scm_is_non_nil_compound(x);
+    return (scm_nullp(x)) || scm_is_pair(x);
 }
 
-function scm_is_non_nil_compound(x)
+function scm_is_pair(x)
 {
     return (x instanceof Array);
 }
@@ -401,7 +401,7 @@ function scm_nullp(c)
 
 function scm_compound_elt(x, i)
 {
-    scm_assert(scm_is_non_nil_compound(x));
+    scm_assert(scm_is_pair(x));
     scm_assert(i >= 0);
     while(i > 0) {
         x = scm_cdr(x);
