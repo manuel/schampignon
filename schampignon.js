@@ -240,12 +240,11 @@ Scm_cont.prototype.scm_combine = function(vm, args, next, tail)
 
 /* Note that the eval and call/cc combiners always tail-call the
    expression to eval and the function passed to call/cc,
-   respectively.  The reason why this works is because if the
-   combiners appeared in tail position themselves, the frames they
-   (re-) used are no longer needed.  If the combiners did not appear
-   in position, they have already created a fresh frame, which is now
-   free for use of the subsequent expression and function call,
-   respectively. */
+   respectively.  The reason why this works is because if the combiner
+   appeared in tail position itself, the frame it (re-)used is no
+   longer needed.  If the combiner did *not* appear in tail position,
+   it has already created a fresh frame, which is now free for use of
+   the subsequent expression and function call, respectively. */
 
 /**** Native Combiners ****/
 
