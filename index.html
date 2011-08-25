@@ -4,7 +4,7 @@
   <script src="jsparse.js" type="text/javascript"></script>
   <script src="schampignon.js" type="text/javascript"></script>
 </head>
-<body onload='do_eval(scm_parse(document.getElementById("thecode").textContent)); return false;'>
+<body onload="do_onload()">
   <div id="output">
   </div>
   <form id="evalform"
@@ -43,6 +43,18 @@ scm_update(ground_env, "set-slot!", scm_make_native(scm_set_slot));
 scm_update(ground_env, "get-slot", scm_make_native(scm_get_slot));
 
 var vm = new Scm_vm(scm_make_env(ground_env));
+
+function do_onload()
+{
+  var start_time = new Date().getTime();
+  var forms = scm_parse(document.getElementById("thecode").textContent);
+  var parse_time = new Date().getTime();
+  do_print("Parsed prelude (" + (parse_time - start_time) + "ms)");
+  do_eval(forms);
+  var eval_time = new Date().getTime();
+  do_print("Evaluated prelude (" + (eval_time - parse_time) + "ms)");
+  return false;
+}
 
 function do_eval(forms)
 {
