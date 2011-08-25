@@ -113,7 +113,7 @@ function scm_general_combine(vm, otree, next, tail)
 function scm_insn_argument_eval(combiner, otree, args, next)
 {
     return function(vm) {
-        if (scm_nullp(otree)) {
+        if (scm_is_nil(otree)) {
             var combination = scm_cons(combiner, scm_array_to_cons_list(args));
             /* After argument evaluation of an original applicative
                combination, tail-call the new combination.  If the
@@ -344,8 +344,8 @@ function scm_extend(combiner, otree, denv)
 
 function scm_match(env, formal_tree, actual_tree)
 {
-    if (scm_nullp(formal_tree)) {
-        if (!scm_nullp(actual_tree))
+    if (scm_is_nil(formal_tree)) {
+        if (!scm_is_nil(actual_tree))
             scm_error("match failure: expected nil, got " + actual_tree);
     } else if (scm_is_pair(formal_tree)) {
         scm_match(env, scm_car(formal_tree), scm_car(actual_tree));
@@ -386,7 +386,7 @@ function scm_is_symbol(x)
 
 function scm_is_compound(x)
 {
-    return (scm_nullp(x)) || scm_is_pair(x);
+    return scm_is_nil(x) || scm_is_pair(x);
 }
 
 function scm_is_pair(x)
@@ -394,7 +394,7 @@ function scm_is_pair(x)
     return (x instanceof Array);
 }
 
-function scm_nullp(c)
+function scm_is_nil(c)
 {
     return c === scm_nil;
 }
@@ -422,7 +422,7 @@ function scm_cons_list_to_array(c)
 {
     scm_assert(scm_is_compound(c));
     var res = [];
-    while(!scm_nullp(c)) {
+    while(!scm_is_nil(c)) {
         res.push(scm_car(c));
         c = scm_cdr(c);
     }

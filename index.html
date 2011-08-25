@@ -21,7 +21,7 @@ scm_update(ground_env, "eval", scm_wrap(new Scm_eval()));
 scm_update(ground_env, "call/cc", scm_wrap(new Scm_callcc()));
 scm_update(ground_env, "wrap", scm_make_native(scm_wrap));
 scm_update(ground_env, "unwrap", scm_make_native(scm_unwrap));
-scm_update(ground_env, "null?", scm_make_native(scm_nullp));
+scm_update(ground_env, "null?", scm_make_native(scm_is_nil));
 scm_update(ground_env, "car", scm_make_native(scm_car));
 scm_update(ground_env, "cdr", scm_make_native(scm_cdr));
 scm_update(ground_env, "cons", scm_make_native(scm_cons));
