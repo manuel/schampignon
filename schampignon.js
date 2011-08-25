@@ -108,7 +108,7 @@ function scm_general_combine(vm, otree, next, tail)
         /* For an operative, set the environment to the operator's
            static lexical environment enriched with bindings from
            matching the operand tree against the parameter tree, and
-           enter the operative's body expression as a tail call. */
+           enter the operative's body expression in tail position. */
         vm.e = scm_extend(vm.a, otree, vm.e);
         scm_compile(vm, vm.a.body, next, true);
     }
@@ -119,13 +119,15 @@ function scm_insn_argument_eval(combiner, otree, args, next)
 {
     return function(vm) {
         if (scm_is_nil(otree)) {
-            var combination = scm_cons(combiner, scm_array_to_cons_list(args));
             /* After argument evaluation of an original applicative
-               combination, tail-call the new combination.  If the
-               original combination was not a tail call, it has
-               created a new frame, which we can reuse.  If the
-               original combination was a tail call, it's the same:
-               just reuse its frame. */
+               combination, tail-call the new combination, consisting
+               of the applicative's underlying combiner and the
+               arguments (the results of evaluating the elements of
+               the operand tree).  If the original combination was not
+               a tail call, it has created a new frame, which we can
+               reuse.  If the original combination was a tail call,
+               it's the same: just reuse its frame. */
+            var combination = scm_cons(combiner, scm_array_to_cons_list(args));
             scm_compile(vm, combination, next, true);
         } else {
             var operand = scm_car(otree);
@@ -152,6 +154,26 @@ function scm_insn_return(vm)
     vm.e = vm.s.e;
     vm.s = vm.s.s;
     return true;
+}
+
+function scm_wrap(combiner)
+{
+    return new Scm_wrapper(combiner);
+}
+
+function scm_unwrap(wrapper)
+{
+    return wrapper.combiner;
+}
+
+function scm_is_applicative(combiner)
+{
+    return (combiner instanceof Scm_wrapper);
+}
+
+function scm_is_operative(combiner)
+{
+    return !scm_is_applicative(combiner);
 }
 
 /**** Built-in Combiners ****/
@@ -186,6 +208,7 @@ function scm_insn_define(ptree, env, next)
 {
     return function(vm) {
         scm_match(env, ptree, vm.a);
+        vm.a = scm_inert;
         vm.x = next;
         return true;
     };
@@ -231,9 +254,9 @@ function Scm_callcc() {}
 
 Scm_callcc.prototype.scm_combine = function(vm, args, next, tail)
 {
-    var fun = scm_compound_elt(args, 0);
+    var combiner = scm_compound_elt(args, 0);
     var k = scm_wrap(new Scm_cont(vm.s));
-    scm_compile(vm, scm_cons(fun, scm_cons(k, scm_nil)), next, true); // *
+    scm_compile(vm, scm_cons(combiner, scm_cons(k, scm_nil)), next, true); // *
     return true;
 }
 
@@ -294,6 +317,7 @@ function scm_make_instance(vt)
 function scm_bind_method(vt, symbol, method)
 {
     vt[symbol] = method;
+    return scm_inert;
 }
 
 function scm_lookup_method(obj, symbol)
@@ -306,6 +330,7 @@ function scm_lookup_method(obj, symbol)
 function scm_set_slot(obj, symbol, value)
 {
     obj[symbol] = value;
+    return scm_inert;
 }
 
 function scm_get_slot(obj, symbol)
@@ -316,6 +341,13 @@ function scm_get_slot(obj, symbol)
 }
 
 /**** Environments ****/
+
+var scm_ignore = {};
+
+function scm_is_ignore(obj)
+{
+    return (obj === scm_ignore) || (obj === "%ignore"); // ?
+}
 
 function Scm_env(parent)
 {
@@ -442,35 +474,9 @@ function scm_cons_list_to_array(c)
     return res;
 }
 
-/**** Utilities ****/
+/**** Misc ****/
 
 var scm_inert = {};
-var scm_ignore = {};
-
-function scm_is_ignore(obj)
-{
-    return (obj === scm_ignore) || (obj === "%ignore"); // ?
-}
-
-function scm_wrap(combiner)
-{
-    return new Scm_wrapper(combiner);
-}
-
-function scm_unwrap(wrapper)
-{
-    return wrapper.combiner;
-}
-
-function scm_is_applicative(combiner)
-{
-    return (combiner instanceof Scm_wrapper);
-}
-
-function scm_is_operative(combiner)
-{
-    return !scm_is_applicative(combiner);
-}
 
 function scm_eq(a, b)
 {
@@ -481,6 +487,8 @@ function scm_plus(a, b)
 {
     return a + b;
 }
+
+/**** Utilities ****/
 
 function scm_assert(b)
 {
