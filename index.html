@@ -230,11 +230,10 @@ This should print 9.
 ($define! send-message
    ($lambda (obj message . args)
       ($let ((method (lookup-method obj message)))
-         (apply method (list* self args)))))
+         (apply method (list* obj args)))))
 
-</pre>
-<h2>Not-a-lude</h2>
-<pre>
+
+
 (comment delimited control)
 
 ($define! prompt-vtable (make-vtable))
