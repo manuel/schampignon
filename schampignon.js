@@ -220,7 +220,12 @@ Scm_callcc.prototype.scm_combine = function(vm, args, next, tail)
 {
     var fun = scm_compound_elt(args, 0);
     var k = scm_wrap(new Scm_cont(vm.s));
-    scm_compile(vm, scm_cons(fun, scm_cons(k, scm_nil)), next, tail);
+    /* As in the case with performing the underlying combiner of an
+       applicative after argument evaluation, we can always tail-call
+       the function: if the call/cc doesn't appear in tail position,
+       it has already created a new frame, so we reuse that.  If it
+       does appear in tail position, we can also reuse the frame. */
+    scm_compile(vm, scm_cons(fun, scm_cons(k, scm_nil)), next, true);
     return true;
 }
 

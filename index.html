@@ -73,6 +73,8 @@ function do_print(string)
 <h2>Sample</h2>
 <pre>
 
+(run-cc ($lambda () (push-prompt (make-prompt) ($lambda () 3))))
+
 (run-cc ($lambda () ($push-prompt (make-prompt) 3)))
 
 (run-cc
