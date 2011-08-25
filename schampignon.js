@@ -14,6 +14,8 @@ function Scm_vm(e)
     this.e = e;
     // Stack
     this.s = null;
+    // Ticker
+    this.i = 0;
 }
 
 function Scm_frame(x, e, s)
@@ -45,6 +47,7 @@ function scm_compile(vm, form, next, tail)
         vm.a = form;
         vm.x = next;
     }
+    vm.i++;
 }
 
 function scm_insn_combine(otree, next, tail)

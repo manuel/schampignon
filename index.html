@@ -49,16 +49,16 @@ function do_onload()
   var start_time = new Date().getTime();
   var forms = scm_parse(document.getElementById("thecode").textContent);
   var parse_time = new Date().getTime();
-  do_print("Parsed prelude (" + (parse_time - start_time) + "ms)");
+  do_print("Parsed prelude (" + (parse_time - start_time) + " ms)");
   do_eval(forms);
-  var eval_time = new Date().getTime();
-  do_print("Evaluated prelude (" + (eval_time - parse_time) + "ms)");
   return false;
 }
 
 function do_eval(forms)
 {
   do_print("> " + document.forms.evalform.input.value);
+  var start_time = new Date().getTime();
+  vm.i = 0;
   for (var i = 0; i < forms.length; i++) {
     var form = forms[i];
     var result;
@@ -70,6 +70,13 @@ function do_eval(forms)
     }
     do_print(result);
   }
+  var eval_time = new Date().getTime();
+  var eval_duration = (eval_time - start_time);
+  var ipms = vm.i / eval_duration;
+  var ips = ipms * 1000;
+  var ips = ipms * 1000;
+  var mhz = ips / 1000000;
+  do_print("(" + eval_duration + " ms, " + vm.i + " insns, " + mhz.toFixed(2) + " BogoMHz)");
   return false;
 }
 
