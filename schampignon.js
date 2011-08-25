@@ -165,14 +165,14 @@ Scm_define.prototype.scm_combine = function(vm, otree, next, tail)
 {
     var ptree = scm_compound_elt(otree, 0);
     var expr = scm_compound_elt(otree, 1);
-    scm_compile(vm, expr, scm_insn_define(ptree, next), false);
+    scm_compile(vm, expr, scm_insn_define(ptree, vm.e, next), false);
     return true;
 }
 
-function scm_insn_define(ptree, next)
+function scm_insn_define(ptree, env, next)
 {
     return function(vm) {
-        scm_match(vm.e, ptree, vm.a);
+        scm_match(env, ptree, vm.a);
         vm.x = next;
         return true;
     };
@@ -256,6 +256,42 @@ Scm_native.prototype.scm_combine = function(vm, args, next, tail)
 function scm_make_native(js_fun)
 {
     return scm_wrap(new Scm_native(js_fun));
+}
+
+/**** Schampignon Hare-Brained Bare-Bones Object System (SCHHBBBOS) ****/
+
+function scm_make_vtable()
+{
+    return {};
+}
+
+function scm_make_instance(vt)
+{
+    return { scm_vt: vt };
+}
+
+function scm_bind_method(vt, symbol, method)
+{
+    vt[symbol] = method;
+}
+
+function scm_lookup_method(obj, symbol)
+{
+    var method = obj.scm_vt[symbol];
+    if (!method) scm_error("message not understood: " + symbol);
+    return method;
+}
+
+function scm_set_slot(obj, symbol, value)
+{
+    obj[symbol] = value;
+}
+
+function scm_get_slot(obj, symbol)
+{
+    var value = obj[symbol];
+    scm_assert(value !== undefined);
+    return value;
 }
 
 /**** Environments ****/
@@ -405,6 +441,16 @@ function scm_is_applicative(combiner)
 function scm_is_operative(combiner)
 {
     return !scm_is_applicative(combiner);
+}
+
+function scm_eq(a, b)
+{
+    return a === b;
+}
+
+function scm_plus(a, b)
+{
+    return a + b;
 }
 
 function scm_assert(b)

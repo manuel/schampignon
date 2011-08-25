@@ -4,10 +4,11 @@
   <script src="jsparse.js" type="text/javascript"></script>
   <script src="schampignon.js" type="text/javascript"></script>
 </head>
-<body>
+<body onload='do_eval(scm_parse(document.getElementById("thecode").textContent)); return false;'>
   <div id="output">
   </div>
-  <form id="evalform" onsubmit="return do_eval()">
+  <form id="evalform"
+        onsubmit="try{return do_eval(scm_parse(document.forms.evalform.input.value));}finally{return false;}">
     <input type="text" name="input">
     <input type="submit" value="eval">
   </form>
@@ -29,23 +30,32 @@ scm_update(ground_env, "#t", true);
 scm_update(ground_env, "#f", false);
 scm_update(ground_env, "%ignore", {});
 scm_update(ground_env, "%inert", {});
+scm_update(ground_env, "eq?", scm_make_native(scm_eq));
+scm_update(ground_env, "+", scm_make_native(scm_plus));
+scm_update(ground_env, "error", scm_make_native(scm_error));
 scm_update(ground_env, "print", scm_make_native(do_print));
+// SCHHBBOS
+scm_update(ground_env, "make-vtable", scm_make_native(scm_make_vtable));
+scm_update(ground_env, "make-instance", scm_make_native(scm_make_instance));
+scm_update(ground_env, "bind-method", scm_make_native(scm_bind_method));
+scm_update(ground_env, "lookup-method", scm_make_native(scm_lookup_method));
+scm_update(ground_env, "set-slot!", scm_make_native(scm_set_slot));
+scm_update(ground_env, "get-slot", scm_make_native(scm_get_slot));
 
 var vm = new Scm_vm(scm_make_env(ground_env));
 
-function do_eval()
+function do_eval(forms)
 {
-  var forms = scm_parse(document.forms.evalform.input.value);
   do_print("> " + document.forms.evalform.input.value);
   for (var i = 0; i < forms.length; i++) {
     var form = forms[i];
     var result;
-    try {
+//    try {
 //      do_print("PARSE: " + JSON.stringify(form));
       result = scm_eval(vm, form);
-    } catch(e) {
-      result = "ERROR: " + e;
-    }
+//    } catch(e) {
+//      result = "ERROR: " + e;
+//    }
     do_print(result);
   }
   return false;
@@ -60,10 +70,282 @@ function do_print(string)
     return false;
 }
   </script>
-<p>Some sample code for playing
+<h2>Sample</h2>
 <pre>
-($define! f ($vau (k) e ((eval k e) 12)))
-(call/cc f)
+
+(run-cc ($lambda () ($push-prompt (make-prompt) 3)))
+
+(run-cc
+   ($lambda ()
+      ($let ((p (new-prompt)))
+         (+ 2 ($push-prompt p 3)))))
+
+(run-cc
+   ($lambda ()
+      ($let ((p (new-prompt)))
+         (+ 2 ($push-prompt p
+                 ($if (with-sub-cont p
+                         (lambda (k)
+                            (+ ($push-sub-cont k #f)
+                               ($push-sub-cont k #t))))
+                      3
+                      4))))))
+</pre>
+This should print 9.
+<h2>Prelude</h2>
+<pre id="thecode">
+($define! comment ($vau %ignore %ignore %inert))
+
+
+(comment from kernel report)
+
+($define! $sequence
+   ((wrap ($vau ($seq2) %ignore
+             ($seq2
+                ($define! $aux
+                   ($vau (head . tail) env
+                      ($if (null? tail)
+                           (eval head env)
+                           ($seq2
+                              (eval head env)
+                              (eval (cons $aux tail) env)))))
+                ($vau body env
+                   ($if (null? body)
+                        %inert
+                        (eval (cons $aux body) env))))))
+
+      ($vau (first second) env
+         ((wrap ($vau %ignore %ignore (eval second env)))
+          (eval first env)))))
+
+($define! list (wrap ($vau x %ignore x)))
+
+($define! list*
+   (wrap ($vau args %ignore
+            ($sequence
+               ($define! aux
+                  (wrap ($vau ((head . tail)) %ignore
+                           ($if (null? tail)
+                                head
+                                (cons head (aux tail))))))
+               (aux args)))))
+
+($define! $vau
+   ((wrap ($vau ($vau) %ignore
+             ($vau (formals eformal . body) env
+                (eval (list $vau formals eformal
+                           (cons $sequence body))
+                      env))))
+      $vau))
+
+($define! $lambda
+   ($vau (formals . body) env
+      (wrap (eval (list* $vau formals %ignore body)
+                  env))))
+
+($define! apply
+   ($lambda (appv arg . opt)
+      (eval (cons (unwrap appv) arg)
+            ($if (null? opt)
+                 (make-environment)
+                 (car opt)))))
+
+($define! $cond
+   ($vau clauses env
+
+      ($define! aux
+         ($lambda ((test . body) . clauses)
+            ($if (eval test env)
+                 (apply (wrap $sequence) body env)
+                 (apply (wrap $cond) clauses env))))
+
+      ($if (null? clauses)
+           %inert
+           (apply aux clauses))))
+
+($define! $let
+   ($vau (bindings . body) env
+      (eval (cons (list* $lambda (map car bindings) body)
+                  (map cadr bindings))
+            env)))
+
+($define! $set!
+   ($vau (exp1 formals exp2) env
+      (eval (list $define! formals
+                  (list (unwrap eval) exp2 env))
+            (eval exp1 env))))
+
+($define! get-current-environment (wrap ($vau () e e)))
+
+($define! $let/cc
+   ($vau (symbol . body) env
+      (eval (list call/cc (list* $lambda (list symbol) body))
+            env)))
+
+
+(comment not from kernel report)
+
+($define! $quote ($vau (x) %ignore x))
+
+($define! map
+   ($lambda (fun list)
+      ($if (null? list)
+           ()
+           (cons (fun (car list)) (map fun (cdr list))))))
+
+($define! send-message
+   ($lambda (obj message . args)
+      ($let ((method (lookup-method obj message)))
+         (apply method (list* self args)))))
+
+
+(comment delimited control)
+
+($define! prompt-vtable (make-vtable))
+
+($define! make-prompt
+   ($lambda () (make-instance prompt-vtable)))
+
+
+($define! $push-prompt
+   ($vau (p . es) env
+      (push-prompt (eval p env)
+         ($lambda () (eval (list* $sequence es) env)))))
+
+($define! $push-sub-cont
+   ($vau (k . es) env
+      (push-sub-cont (eval k env)
+         ($lambda () (eval (list* $sequence es) env)))))
+
+
+($define! abort %inert)
+($define! mk %inert)
+
+(comment just a hack until i learn better kernel)
+($define! the-env (get-current-environment))
+
+
+($define! push-prompt
+   ($lambda (p th)
+      (call/cc
+         ($lambda (k)
+            ($set! the-env mk (push-p p (push-seg k mk)))
+            (abort th)))))
+
+($define! with-sub-cont
+   ($lambda (p f)
+      ($let (((subk mk*) (split-seq p mk)))
+         ($set! the-env mk mk*)
+         (call/cc
+            ($lambda (k)
+               (abort ($lambda () (f (push-seg k subk)))))))))
+
+($define! push-sub-cont
+   ($lambda (subk th)
+      (call/cc
+         ($lambda (k)
+            ($set! mk (append-seq subk (push-seg k mk)))
+            (abort th)))))
+
+
+($define! run-cc
+   ($lambda (th)
+      ($set! the-env mk (empty-seq))
+      (underflow ((call/cc
+                     ($lambda (k)
+                        ($set! the-env abort k)
+                        (abort th)))))))
+
+($define! underflow
+   ($lambda (v)
+      (send-message mk ($quote underflow) v)))
+
+
+(comment implement sequences in terms of object system - ugly)
+
+($define! empty-seq-vtable (make-vtable))
+($define! push-p-vtable (make-vtable))
+($define! push-seg-vtable (make-vtable))
+
+($define! empty-seq
+   ($lambda ()
+      (make-instance empty-seq-vtable)))
+
+(bind-method empty-seq-vtable ($quote underflow)
+   ($lambda (self v)
+      v))
+
+($define! push-p
+   ($lambda (p mk*)
+      ($let ((inst (make-instance push-p-vtable)))
+         (set-slot! inst ($quote p) p)
+         (set-slot! inst ($quote mk*) mk*)
+         inst)))
+
+(bind-method push-p-vtable ($quote underflow)
+   ($lambda (self v)
+      ($set! the-env mk (get-slot self ($quote mk*)))
+      (underflow v)))
+
+($define! push-seg
+   ($lambda (k mk*)
+      ($let ((inst (make-instance push-seg-vtable)))
+         (set-slot! inst ($quote k) k)
+         (set-slot! inst ($quote mk*) mk*)
+         inst)))
+
+(bind-method push-seg-vtable ($quote underflow)
+   ($lambda (self v)
+      ($set! the-env mk (get-slot self ($quote mk*)))
+      ((get-slot self ($quote k)) v)))
+
+
+($define! split-seq
+   ($lambda (p mk)
+      (send-message mk ($quote do-split-seq) p)))
+
+(bind-method empty-seq-vtable ($quote do-split-seq)
+   ($lambda (self p)
+      (error ($quote prompt-not-found))))
+
+(bind-method push-p-vtable ($quote do-split-seq)
+   ($lambda (self p)
+      ($let ((p# (get-slot self ($quote p)))
+             (sk (get-slot self ($quote mk*))))
+         ($if (eq? p p#)
+            ($let (((subk sk#) (split-seq p sk)))
+               (list (push-p p# subk) sk#))
+            (list (empty-seq) sk)))))
+
+(bind-method push-seg-vtable ($quote do-split-seq)
+   ($lambda (self p)
+      ($let ((seg (get-slot self ($quote k)))
+             (sk (get-slot self ($quote mk*))))
+         ($let (((subk sk#) (split-seq p sk)))
+            (list (push-seg seg subk) sk#)))))
+
+
+($define! append-seq
+   ($lambda (mk mk*)
+      (send-message mk ($quote do-append-seq) mk*)))
+
+(bind-method empty-seq-vtable ($quote do-append-seq)
+   ($lambda (self mk*)
+      mk*))
+
+(bind-method push-p-vtable ($quote do-append-seq)
+   ($lambda (self mk*)
+      ($let ((p (get-slot self ($quote p)))
+             (sk (get-slot self ($quote mk*))))
+         (push-p p (append-seq sk mk*)))))
+
+(bind-method push-seg-vtable ($quote do-append-seq)
+   ($lambda (self mk*)
+      ($let ((seg (get-slot self ($quote k)))
+             (sk (get-slot self ($quote mk*))))
+         (push-seg seg (append-seq sk mk*)))))
+
+
 </pre>
 </body>
 </html>
