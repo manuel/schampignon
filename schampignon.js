@@ -30,7 +30,7 @@ function Scm_frame(x, e, s)
 function scm_eval(vm, form)
 {
     scm_compile(vm, form, scm_insn_halt, false);
-    while(vm.x(vm));
+    while(vm.x(vm)) { vm.i++; }
     return vm.a;
 }
 
@@ -47,7 +47,6 @@ function scm_compile(vm, form, next, tail)
         vm.a = form;
         vm.x = next;
     }
-    vm.i++;
 }
 
 function scm_insn_combine(otree, next, tail)
