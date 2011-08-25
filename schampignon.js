@@ -329,8 +329,8 @@ function scm_extend(combiner, otree, denv)
 {
     var xenv = scm_make_env(combiner.env);
     scm_match(xenv, combiner.ptree, otree);
-    // todo: handle %ignore
-    scm_update(xenv, combiner.eformal, denv);
+    if (!scm_is_ignore(combiner.eformal))
+        scm_update(xenv, combiner.eformal, denv);
     return xenv;
 }
 
@@ -343,11 +343,11 @@ function scm_match(env, formal_tree, actual_tree)
         scm_match(env, scm_car(formal_tree), scm_car(actual_tree));
         scm_match(env, scm_cdr(formal_tree), scm_cdr(actual_tree));
     } else if (scm_is_symbol(formal_tree)) {
-        scm_update(env, formal_tree, actual_tree);
+        if (!scm_is_ignore(formal_tree))
+            scm_update(env, formal_tree, actual_tree);
     } else {
         scm_error("match failure: invalid formal: " + formal_tree);
     }
-    // todo: handle %ignore
 }
 
 /**** Forms ****/
@@ -422,6 +422,14 @@ function scm_cons_list_to_array(c)
 }
 
 /**** Utilities ****/
+
+var scm_inert = {};
+var scm_ignore = {};
+
+function scm_is_ignore(obj)
+{
+    return (obj === scm_ignore) || (obj === "%ignore"); // ?
+}
 
 function scm_wrap(combiner)
 {
