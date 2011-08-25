@@ -59,7 +59,7 @@ function scm_insn_halt(vm)
     return false;
 }
 
-/**** Compound Combiners & Applicatives ****/
+/**** Compound Operatives & Applicatives ****/
 
 function Scm_combiner(env, ptree, eformal, body)
 {
