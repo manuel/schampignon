@@ -208,7 +208,7 @@ Scm_eval.prototype.scm_combine = function(vm, args, next, tail)
     var expr = scm_compound_elt(args, 0);
     var env = scm_compound_elt(args, 1);
     vm.e = env;
-    scm_compile(vm, expr, next, tail);
+    scm_compile(vm, expr, next, true);
     return true;
 }
 
@@ -220,11 +220,6 @@ Scm_callcc.prototype.scm_combine = function(vm, args, next, tail)
 {
     var fun = scm_compound_elt(args, 0);
     var k = scm_wrap(new Scm_cont(vm.s));
-    /* As in the case with performing the underlying combiner of an
-       applicative after argument evaluation, we can always tail-call
-       the function: if the call/cc doesn't appear in tail position,
-       it has already created a new frame, so we reuse that.  If it
-       does appear in tail position, we can also reuse the frame. */
     scm_compile(vm, scm_cons(fun, scm_cons(k, scm_nil)), next, true);
     return true;
 }
@@ -242,6 +237,15 @@ Scm_cont.prototype.scm_combine = function(vm, args, next, tail)
     vm.s = this.s;
     return true;
 }
+
+/* Note that the eval and call/cc combiners always tail-call the
+   expression to eval and the function passed to call/cc,
+   respectively.  The reason why this works is because if the
+   combiners appeared in tail position themselves, the frames they
+   (re-) used are no longer needed.  If the combiners did not appear
+   in position, they have already created a fresh frame, which is now
+   free for use of the subsequent expression and function call,
+   respectively. */
 
 /**** Native Combiners ****/
 
