@@ -54,14 +54,6 @@ function scm_insn_combine(otree, next, tail)
     };
 }
 
-function scm_insn_return(vm)
-{
-    vm.x = vm.s.x;
-    vm.e = vm.s.e;
-    vm.s = vm.s.s;
-    return true;
-}
-
 function scm_insn_halt(vm)
 {
     return false;
@@ -93,6 +85,15 @@ Scm_wrapper.prototype.scm_combine  = scm_general_combine;
 function scm_general_combine(vm, otree, next, tail)
 {
     if (!tail) {
+        /* If this call does not appear in tail position, save the
+           current execution state (next instruction, lexical
+           environment, and stack) in a new stack frame, and set up
+           the next instruction to pop (return from) the frame again
+           after the operation, reinstating the saved state and
+           executing the original next instruction.  Note that if this
+           call *does* appear in tail position, it reuses the current
+           frame, and directly executes the next instruction after the
+           operation. */
         vm.s = new Scm_frame(next, vm.e, vm.s);
         next = scm_insn_return;
     }
@@ -104,6 +105,10 @@ function scm_general_combine(vm, otree, next, tail)
            tree is empty. */
         vm.x = scm_insn_argument_eval(scm_unwrap(vm.a), otree, [], next);
     } else {
+        /* For an operative, set the environment to an environment
+           enriched with bindings from matching the operands tree
+           against the parameter tree, and enter the operative's body
+           expression as a tail call. */
         vm.e = scm_extend(vm.a, otree, vm.e);
         scm_compile(vm, vm.a.body, next, true);
     }
@@ -139,6 +144,14 @@ function scm_insn_argument_store(combiner, otree, args, next)
         vm.x = scm_insn_argument_eval(combiner, otree, args, next);
         return true;
     };
+}
+
+function scm_insn_return(vm)
+{
+    vm.x = vm.s.x;
+    vm.e = vm.s.e;
+    vm.s = vm.s.s;
+    return true;
 }
 
 /**** Built-in Combiners ****/
