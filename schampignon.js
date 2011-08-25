@@ -107,7 +107,7 @@ function scm_general_combine(vm, otree, next, tail)
     } else {
         /* For an operative, set the environment to the operator's
            static lexical environment enriched with bindings from
-           matching the operands tree against the parameter tree, and
+           matching the operand tree against the parameter tree, and
            enter the operative's body expression as a tail call. */
         vm.e = scm_extend(vm.a, otree, vm.e);
         scm_compile(vm, vm.a.body, next, true);
