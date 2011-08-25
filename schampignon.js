@@ -208,7 +208,7 @@ Scm_eval.prototype.scm_combine = function(vm, args, next, tail)
     var expr = scm_compound_elt(args, 0);
     var env = scm_compound_elt(args, 1);
     vm.e = env;
-    scm_compile(vm, expr, next, true);
+    scm_compile(vm, expr, next, true); // *
     return true;
 }
 
@@ -220,7 +220,7 @@ Scm_callcc.prototype.scm_combine = function(vm, args, next, tail)
 {
     var fun = scm_compound_elt(args, 0);
     var k = scm_wrap(new Scm_cont(vm.s));
-    scm_compile(vm, scm_cons(fun, scm_cons(k, scm_nil)), next, true);
+    scm_compile(vm, scm_cons(fun, scm_cons(k, scm_nil)), next, true); // *
     return true;
 }
 
@@ -238,7 +238,7 @@ Scm_cont.prototype.scm_combine = function(vm, args, next, tail)
     return true;
 }
 
-/* Note that the eval and call/cc combiners always tail-call the
+/* (*) Note that the eval and call/cc combiners always tail-call the
    expression to eval and the function passed to call/cc,
    respectively.  The reason why this works is because if the combiner
    appeared in tail position itself, the frame it (re-)used is no
