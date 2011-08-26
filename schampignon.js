@@ -12,16 +12,22 @@ function Scm_vm(e)
     this.x = null;
     // Environment
     this.e = e;
+    // aRguments
+    this.r = [];
+    // Operand tree
+    this.o = scm_nil;
     // Stack
     this.s = null;
     // Ticker
     this.i = 0;
 }
 
-function Scm_frame(x, e, s)
+function Scm_frame(x, e, r, o, s)
 {
     this.x = x;
     this.e = e;
+    this.r = r;
+    this.o = o;
     this.s = s;
 }
 
@@ -96,16 +102,18 @@ function scm_general_combine(vm, otree, next, tail)
            call *does* appear in tail position, it reuses the current
            frame, and directly executes the next instruction after the
            operation. */
-        vm.s = new Scm_frame(next, vm.e, vm.s);
+        vm.s = new Scm_frame(next, vm.e, vm.r, vm.o, vm.s);
         next = scm_insn_return;
     }
+    vm.r = [];
+    vm.o = otree;
     if (scm_is_applicative(vm.a)) {
         /* For an applicative, we take a detour through argument
            evaluation.  This ping-pongs between scm_insn_argument_eval
            and scm_insn_argument_store, destructuring the operand
            tree, and building up the arguments list, until the operand
            tree is empty. */
-        vm.x = scm_insn_argument_eval(scm_unwrap(vm.a), otree, [], next);
+        vm.x = scm_insn_argument_eval(scm_unwrap(vm.a), next);
     } else {
         /* For an operative, set the environment to the operator's
            static lexical environment enriched with bindings from
@@ -117,10 +125,10 @@ function scm_general_combine(vm, otree, next, tail)
     return true;
 }
 
-function scm_insn_argument_eval(combiner, otree, args, next)
+function scm_insn_argument_eval(combiner, next)
 {
     return function(vm) {
-        if (scm_is_nil(otree)) {
+        if (scm_is_nil(vm.o)) {
             /* After argument evaluation of an original applicative
                combination, tail-call the new combination, consisting
                of the applicative's underlying combiner and the
@@ -129,21 +137,23 @@ function scm_insn_argument_eval(combiner, otree, args, next)
                a tail call, it has created a new frame, which we can
                reuse.  If the original combination was a tail call,
                it's the same: just reuse its frame. */
-            var combination = scm_cons(combiner, scm_array_to_cons_list(args));
+            var combination = scm_cons(combiner, scm_array_to_cons_list(vm.r));
             scm_compile(vm, combination, next, true);
         } else {
-            next = scm_insn_argument_store(combiner, scm_cdr(otree), args, next);
-            scm_compile(vm, scm_car(otree), next, false);
+            next = scm_insn_argument_store(combiner, next);
+            scm_compile(vm, scm_car(vm.o), next, false);
+            vm.o = scm_cdr(vm.o);
         }
         return true;
     };
 }
 
-function scm_insn_argument_store(combiner, otree, args, next)
+function scm_insn_argument_store(combiner, next)
 {
     return function(vm) {
-        args.push(vm.a);
-        vm.x = scm_insn_argument_eval(combiner, otree, args, next);
+        vm.r = vm.r.slice(); // HORROR
+        vm.r.push(vm.a);
+        vm.x = scm_insn_argument_eval(combiner, next);
         return true;
     };
 }
@@ -152,6 +162,8 @@ function scm_insn_return(vm)
 {
     vm.x = vm.s.x;
     vm.e = vm.s.e;
+    vm.r = vm.s.r;
+    vm.o = vm.s.o;
     vm.s = vm.s.s;
     return true;
 }
@@ -256,7 +268,7 @@ Scm_callcc.prototype.scm_combine = function(vm, args, next, tail)
 {
     var combiner = scm_compound_elt(args, 0);
     var k = scm_wrap(new Scm_cont(vm.s));
-    scm_compile(vm, scm_cons(combiner, scm_cons(k, scm_nil)), next, true); // *
+    scm_compile(vm, scm_cons(combiner, scm_cons(k, scm_nil)), next, tail); // *
     return true;
 }
 
