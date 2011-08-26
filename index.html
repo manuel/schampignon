@@ -277,21 +277,20 @@ function do_print(string)
 ($define! abort %inert)
 ($define! mk %inert)
 
-(comment just a hack until i learn better kernel)
-($define! the-env (get-current-environment))
+($define! local (get-current-environment))
 
 
 ($define! push-prompt
    ($lambda (p th)
       (call/cc
          ($lambda (k)
-            ($set! the-env mk (push-p p (push-seg k mk)))
+            ($set! local mk (push-p p (push-seg k mk)))
             (abort th)))))
 
 ($define! with-sub-cont
    ($lambda (p f)
       ($let (((subk mk*) (split-seq p mk)))
-         ($set! the-env mk mk*)
+         ($set! local mk mk*)
          (call/cc
             ($lambda (k)
                (abort ($lambda () (f (push-seg k subk)))))))))
@@ -300,16 +299,16 @@ function do_print(string)
    ($lambda (subk th)
       (call/cc
          ($lambda (k)
-            ($set! the-env mk (append-seq subk (push-seg k mk)))
+            ($set! local mk (append-seq subk (push-seg k mk)))
             (abort th)))))
 
 
 ($define! run-cc
    ($lambda (th)
-      ($set! the-env mk (empty-seq))
+      ($set! local mk (empty-seq))
       (underflow ((call/cc
                      ($lambda (k)
-                        ($set! the-env abort k)
+                        ($set! local abort k)
                         (abort th)))))))
 
 ($define! underflow
@@ -340,7 +339,7 @@ function do_print(string)
 
 (bind-method! push-p-vtable ($quote underflow)
    ($lambda (self v)
-      ($set! the-env mk (get-slot self ($quote mk*)))
+      ($set! local mk (get-slot self ($quote mk*)))
       (underflow v)))
 
 ($define! push-seg
@@ -352,7 +351,7 @@ function do_print(string)
 
 (bind-method! push-seg-vtable ($quote underflow)
    ($lambda (self v)
-      ($set! the-env mk (get-slot self ($quote mk*)))
+      ($set! local mk (get-slot self ($quote mk*)))
       ((get-slot self ($quote k)) v)))
 
 
