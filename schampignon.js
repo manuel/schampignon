@@ -19,7 +19,7 @@ function Scm_vm(e)
     // Stack
     this.s = null;
     // Statistics
-    this.stat_insns = 0; // number of Instructions
+    this.stat_insns = 0; // number of instructions
 }
 
 function Scm_frame(x, e, r, o, s)
@@ -245,6 +245,34 @@ function scm_insn_test(consequent, alternative, next, tail)
         scm_compile(vm, vm.a ? consequent : alternative, next, tail);
         return true;
     };
+}
+
+/* $sequence (optimization) */
+
+function Scm_sequence() {}
+
+Scm_sequence.prototype.scm_combine = function(vm, otree, next, tail)
+{
+    if (scm_is_nil(otree)) {
+        vm.a = scm_inert;
+        vm.x = next;
+    } else {
+        vm.x = scm_insn_sequence(otree, next);
+    }
+    return true;
+}
+
+function scm_insn_sequence(otree, next)
+{
+    return function(vm) {
+        var rest = scm_cdr(otree);
+        if (scm_is_nil(rest)) {
+            scm_compile(vm, scm_car(otree), next, true); // *
+        } else {
+            scm_compile(vm, scm_car(otree), scm_insn_sequence(rest, next), false);
+        }
+        return true;
+    }
 }
 
 /* eval */

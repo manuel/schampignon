@@ -28,6 +28,7 @@ This should print 9.
   </div>
   <script type="text/javascript">
 var ground_env = scm_make_env();
+scm_update(ground_env, "$sequence", new Scm_sequence());
 scm_update(ground_env, "$define!", new Scm_define());
 scm_update(ground_env, "$vau", new Scm_vau());
 scm_update(ground_env, "$if", new Scm_if());
@@ -111,25 +112,6 @@ function do_print(string)
 
 
 (comment from kernel report)
-
-($define! $sequence
-   ((wrap ($vau ($seq2) %ignore
-             ($seq2
-                ($define! $aux
-                   ($vau (head . tail) env
-                      ($if (null? tail)
-                           (eval head env)
-                           ($seq2
-                              (eval head env)
-                              (eval (cons $aux tail) env)))))
-                ($vau body env
-                   ($if (null? body)
-                        %inert
-                        (eval (cons $aux body) env))))))
-
-      ($vau (first second) env
-         ((wrap ($vau %ignore %ignore (eval second env)))
-          (eval first env)))))
 
 ($define! list (wrap ($vau x %ignore x)))
 
