@@ -18,7 +18,7 @@ function Scm_vm(e)
     this.o = scm_nil;
     // Stack
     this.s = null;
-    // Ticker
+    // Ticker (for speed measurement)
     this.i = 0;
 }
 
@@ -105,8 +105,6 @@ function scm_general_combine(vm, otree, next, tail)
         vm.s = new Scm_frame(next, vm.e, vm.r, vm.o, vm.s);
         next = scm_insn_return;
     }
-    vm.r = [];
-    vm.o = otree;
     if (scm_is_applicative(vm.a)) {
         /* For an applicative, we take a detour through argument
            evaluation.  This ping-pongs between scm_insn_argument_eval
@@ -114,6 +112,8 @@ function scm_general_combine(vm, otree, next, tail)
            tree, and building up the arguments list, until the operand
            tree is empty. */
         vm.x = scm_insn_argument_eval(scm_unwrap(vm.a), next);
+        vm.r = [];
+        vm.o = otree;
     } else {
         /* For an operative, set the environment to the operator's
            static lexical environment enriched with bindings from
@@ -268,7 +268,7 @@ Scm_callcc.prototype.scm_combine = function(vm, args, next, tail)
 {
     var combiner = scm_compound_elt(args, 0);
     var k = scm_wrap(new Scm_cont(vm.s));
-    scm_compile(vm, scm_cons(combiner, scm_cons(k, scm_nil)), next, tail); // *
+    scm_compile(vm, scm_cons(combiner, scm_cons(k, scm_nil)), next, true); // *
     return true;
 }
 
