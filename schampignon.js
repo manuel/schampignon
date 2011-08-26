@@ -18,8 +18,8 @@ function Scm_vm(e)
     this.o = scm_nil;
     // Stack
     this.s = null;
-    // Ticker (for speed measurement)
-    this.i = 0;
+    // Statistics
+    this.stat_insns = 0; // number of Instructions
 }
 
 function Scm_frame(x, e, r, o, s)
@@ -36,7 +36,7 @@ function Scm_frame(x, e, r, o, s)
 function scm_eval(vm, form)
 {
     scm_compile(vm, form, scm_insn_halt, false);
-    while(vm.x(vm)) { vm.i++; }
+    while(vm.x(vm)) { vm.stat_insns++; }
     return vm.a;
 }
 

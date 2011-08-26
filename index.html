@@ -73,7 +73,7 @@ function do_eval(forms)
 {
   do_print("> " + document.forms.evalform.input.value);
   var start_time = new Date().getTime();
-  vm.i = 0;
+  vm.stat_insns = 0;
   for (var i = 0; i < forms.length; i++) {
     var form = forms[i];
     var result;
@@ -86,11 +86,11 @@ function do_eval(forms)
   }
   var eval_time = new Date().getTime();
   var eval_duration = (eval_time - start_time);
-  var ipms = vm.i / eval_duration;
+  var ipms = vm.stat_insns / eval_duration;
   var ips = ipms * 1000;
   var ips = ipms * 1000;
   var mhz = ips / 1000000;
-  do_print("(" + eval_duration + " ms, " + vm.i + " insns, " + mhz.toFixed(3) + " MHz)");
+  do_print("(" + eval_duration + " ms, " + vm.stat_insns + " insns, " + mhz.toFixed(3) + " MHz)");
   return false;
 }
 
