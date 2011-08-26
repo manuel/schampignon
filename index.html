@@ -222,6 +222,14 @@ function do_print(string)
                   (list (unwrap eval) exp2 env))
             (eval exp1 env))))
 
+($define! $provide!
+   ($vau (symbols . body) env
+      (eval (list $define! symbols
+               (list $let ()
+                  (list* $sequence body)
+                  (list* list symbols)))
+            env)))
+
 ($define! get-current-environment (wrap ($vau () e e)))
 
 ($define! $let/cc
@@ -247,7 +255,7 @@ function do_print(string)
 
 
 
-(comment delimited control)
+($provide! (make-prompt $push-prompt with-sub-cont $push-sub-cont run-cc)
 
 ($define! prompt-vtable (make-vtable))
 
@@ -393,6 +401,7 @@ function do_print(string)
              (sk (get-slot self ($quote mk*))))
          (push-seg seg (append-seq sk mk*)))))
 
+) (comment !edivorp$)
 
 </pre>
 </body>
