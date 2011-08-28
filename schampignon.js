@@ -14,20 +14,17 @@ function Scm_vm(e)
     this.e = e;
     // aRguments
     this.r = [];
-    // Operand tree
-    this.o = scm_nil;
     // Stack
     this.s = null;
     // Statistics
     this.stat_insns = 0; // number of instructions
 }
 
-function Scm_frame(x, e, r, o, s)
+function Scm_frame(x, e, r, s)
 {
     this.x = x;
     this.e = e;
     this.r = r;
-    this.o = o;
     this.s = s;
 }
 
@@ -102,7 +99,7 @@ function scm_general_combine(vm, otree, next, tail)
            call *does* appear in tail position, it reuses the current
            frame, and directly executes the next instruction after the
            operation. */
-        vm.s = new Scm_frame(next, vm.e, vm.r, vm.o, vm.s);
+        vm.s = new Scm_frame(next, vm.e, vm.r, vm.s);
         next = scm_insn_return;
     }
     if (scm_is_applicative(vm.a)) {
@@ -111,9 +108,8 @@ function scm_general_combine(vm, otree, next, tail)
            and scm_insn_argument_store, destructuring the operand
            tree, and building up the arguments list, until the operand
            tree is empty. */
-        vm.x = scm_insn_argument_eval(scm_unwrap(vm.a), next);
+        vm.x = scm_insn_argument_eval(scm_unwrap(vm.a), otree, next);
         vm.r = [];
-        vm.o = otree;
     } else {
         /* For an operative, set the environment to the operator's
            static lexical environment enriched with bindings from
@@ -125,10 +121,10 @@ function scm_general_combine(vm, otree, next, tail)
     return true;
 }
 
-function scm_insn_argument_eval(combiner, next)
+function scm_insn_argument_eval(combiner, otree, next)
 {
     return function(vm) {
-        if (scm_is_nil(vm.o)) {
+        if (scm_is_nil(otree)) {
             /* After argument evaluation of an original applicative
                combination, tail-call the new combination, consisting
                of the applicative's underlying combiner and the
@@ -140,20 +136,19 @@ function scm_insn_argument_eval(combiner, next)
             var combination = scm_cons(combiner, scm_array_to_cons_list(vm.r));
             scm_compile(vm, combination, next, true);
         } else {
-            next = scm_insn_argument_store(combiner, next);
-            scm_compile(vm, scm_car(vm.o), next, false);
-            vm.o = scm_cdr(vm.o);
+            next = scm_insn_argument_store(combiner, scm_cdr(otree), next);
+            scm_compile(vm, scm_car(otree), next, false);
         }
         return true;
     };
 }
 
-function scm_insn_argument_store(combiner, next)
+function scm_insn_argument_store(combiner, otree, next)
 {
     return function(vm) {
         vm.r = vm.r.slice(); // HORROR
         vm.r.push(vm.a);
-        vm.x = scm_insn_argument_eval(combiner, next);
+        vm.x = scm_insn_argument_eval(combiner, otree, next);
         return true;
     };
 }
@@ -163,7 +158,6 @@ function scm_insn_return(vm)
     vm.x = vm.s.x;
     vm.e = vm.s.e;
     vm.r = vm.s.r;
-    vm.o = vm.s.o;
     vm.s = vm.s.s;
     return true;
 }
