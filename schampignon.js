@@ -380,7 +380,7 @@ var scm_ignore = {};
 
 function scm_is_ignore(obj)
 {
-    return (obj === scm_ignore) || (obj === "%ignore"); // ?
+    return (obj === scm_ignore) || (obj === "#ignore"); // ?
 }
 
 function Scm_env(parent)

@@ -18,7 +18,6 @@
                       3
                       4))))))
 </pre>
-This should print 9.
   <form id="evalform"
         onsubmit="try{return do_eval(scm_parse(document.forms.evalform.input.value));}finally{return false;}">
     <input type="text" name="input">
@@ -43,8 +42,8 @@ scm_update(ground_env, "cons", scm_make_native(scm_cons));
 scm_update(ground_env, "make-environment", scm_make_native(scm_make_env));
 scm_update(ground_env, "#t", true);
 scm_update(ground_env, "#f", false);
-scm_update(ground_env, "%ignore", scm_ignore);
-scm_update(ground_env, "%inert", scm_inert);
+scm_update(ground_env, "#ignore", scm_ignore);
+scm_update(ground_env, "#inert", scm_inert);
 scm_update(ground_env, "eq?", scm_make_native(scm_eq));
 
 scm_update(ground_env, "+", scm_make_native(scm_plus));
@@ -108,25 +107,25 @@ function do_print(string)
 
 <h2>Prelude</h2>
 <pre id="thecode">
-($define! comment ($vau %ignore %ignore %inert))
+($define! comment ($vau #ignore #ignore #inert))
 
 
 (comment from kernel report)
 
-($define! list (wrap ($vau x %ignore x)))
+($define! list (wrap ($vau x #ignore x)))
 
 ($define! list*
-   (wrap ($vau args %ignore
+   (wrap ($vau args #ignore
             ($sequence
                ($define! aux
-                  (wrap ($vau ((head . tail)) %ignore
+                  (wrap ($vau ((head . tail)) #ignore
                            ($if (null? tail)
                                 head
                                 (cons head (aux tail))))))
                (aux args)))))
 
 ($define! $vau
-   ((wrap ($vau ($vau) %ignore
+   ((wrap ($vau ($vau) #ignore
              ($vau (formals eformal . body) env
                 (eval (list $vau formals eformal
                            (cons $sequence body))
@@ -135,42 +134,42 @@ function do_print(string)
 
 ($define! $lambda
    ($vau (formals . body) env
-      (wrap (eval (list* $vau formals %ignore body)
+      (wrap (eval (list* $vau formals #ignore body)
                   env))))
 
-($define! car ($lambda ((x . %ignore)) x))
-($define! cdr ($lambda ((%ignore . x)) x))
+($define! car ($lambda ((x . #ignore)) x))
+($define! cdr ($lambda ((#ignore . x)) x))
 
-($define! caar ($lambda (((x . %ignore) . %ignore)) x))
-($define! cdar ($lambda (((%ignore . x) . %ignore)) x))
-($define! cadr ($lambda ((%ignore . (x . %ignore))) x))
-($define! cddr ($lambda ((%ignore . (%ignore . x))) x))
+($define! caar ($lambda (((x . #ignore) . #ignore)) x))
+($define! cdar ($lambda (((#ignore . x) . #ignore)) x))
+($define! cadr ($lambda ((#ignore . (x . #ignore))) x))
+($define! cddr ($lambda ((#ignore . (#ignore . x))) x))
 
-($define! caaar ($lambda ((((x . %ignore) . %ignore) . %ignore)) x))
-($define! cdaar ($lambda ((((%ignore . x) . %ignore) . %ignore)) x))
-($define! cadar ($lambda (((%ignore . (x . %ignore)) . %ignore)) x))
-($define! cddar ($lambda (((%ignore . (%ignore . x)) . %ignore)) x))
-($define! caadr ($lambda ((%ignore . ((x . %ignore) . %ignore))) x))
-($define! cdadr ($lambda ((%ignore . ((%ignore . x) . %ignore))) x))
-($define! caddr ($lambda ((%ignore . (%ignore . (x . %ignore)))) x))
-($define! cdddr ($lambda ((%ignore . (%ignore . (%ignore . x)))) x))
+($define! caaar ($lambda ((((x . #ignore) . #ignore) . #ignore)) x))
+($define! cdaar ($lambda ((((#ignore . x) . #ignore) . #ignore)) x))
+($define! cadar ($lambda (((#ignore . (x . #ignore)) . #ignore)) x))
+($define! cddar ($lambda (((#ignore . (#ignore . x)) . #ignore)) x))
+($define! caadr ($lambda ((#ignore . ((x . #ignore) . #ignore))) x))
+($define! cdadr ($lambda ((#ignore . ((#ignore . x) . #ignore))) x))
+($define! caddr ($lambda ((#ignore . (#ignore . (x . #ignore)))) x))
+($define! cdddr ($lambda ((#ignore . (#ignore . (#ignore . x)))) x))
 
-($define! caaaar ($lambda (((((x . %ignore) . %ignore) . %ignore). %ignore))x))
-($define! cdaaar ($lambda (((((%ignore . x) . %ignore) . %ignore). %ignore))x))
-($define! cadaar ($lambda ((((%ignore . (x . %ignore)) . %ignore). %ignore))x))
-($define! cddaar ($lambda ((((%ignore . (%ignore . x)) . %ignore). %ignore))x))
-($define! caadar ($lambda (((%ignore . ((x . %ignore) . %ignore)). %ignore))x))
-($define! cdadar ($lambda (((%ignore . ((%ignore . x) . %ignore)). %ignore))x))
-($define! caddar ($lambda (((%ignore . (%ignore . (x . %ignore))). %ignore))x))
-($define! cdddar ($lambda (((%ignore . (%ignore . (%ignore . x))). %ignore))x))
-($define! caaadr ($lambda ((%ignore .(((x . %ignore) . %ignore) . %ignore)))x))
-($define! cdaadr ($lambda ((%ignore .(((%ignore . x) . %ignore) . %ignore)))x))
-($define! cadadr ($lambda ((%ignore .((%ignore . (x . %ignore)) . %ignore)))x))
-($define! cddadr ($lambda ((%ignore .((%ignore . (%ignore . x)) . %ignore)))x))
-($define! caaddr ($lambda ((%ignore .(%ignore . ((x . %ignore) . %ignore))))x))
-($define! cdaddr ($lambda ((%ignore .(%ignore . ((%ignore . x) . %ignore))))x))
-($define! cadddr ($lambda ((%ignore .(%ignore . (%ignore . (x . %ignore)))))x))
-($define! cddddr ($lambda ((%ignore .(%ignore . (%ignore . (%ignore . x)))))x))
+($define! caaaar ($lambda (((((x . #ignore) . #ignore) . #ignore). #ignore))x))
+($define! cdaaar ($lambda (((((#ignore . x) . #ignore) . #ignore). #ignore))x))
+($define! cadaar ($lambda ((((#ignore . (x . #ignore)) . #ignore). #ignore))x))
+($define! cddaar ($lambda ((((#ignore . (#ignore . x)) . #ignore). #ignore))x))
+($define! caadar ($lambda (((#ignore . ((x . #ignore) . #ignore)). #ignore))x))
+($define! cdadar ($lambda (((#ignore . ((#ignore . x) . #ignore)). #ignore))x))
+($define! caddar ($lambda (((#ignore . (#ignore . (x . #ignore))). #ignore))x))
+($define! cdddar ($lambda (((#ignore . (#ignore . (#ignore . x))). #ignore))x))
+($define! caaadr ($lambda ((#ignore .(((x . #ignore) . #ignore) . #ignore)))x))
+($define! cdaadr ($lambda ((#ignore .(((#ignore . x) . #ignore) . #ignore)))x))
+($define! cadadr ($lambda ((#ignore .((#ignore . (x . #ignore)) . #ignore)))x))
+($define! cddadr ($lambda ((#ignore .((#ignore . (#ignore . x)) . #ignore)))x))
+($define! caaddr ($lambda ((#ignore .(#ignore . ((x . #ignore) . #ignore))))x))
+($define! cdaddr ($lambda ((#ignore .(#ignore . ((#ignore . x) . #ignore))))x))
+($define! cadddr ($lambda ((#ignore .(#ignore . (#ignore . (x . #ignore)))))x))
+($define! cddddr ($lambda ((#ignore .(#ignore . (#ignore . (#ignore . x)))))x))
 
 ($define! apply
    ($lambda (appv arg . opt)
@@ -189,7 +188,7 @@ function do_print(string)
                  (apply (wrap $cond) clauses env))))
 
       ($if (null? clauses)
-           %inert
+           #inert
            (apply aux clauses))))
 
 ($define! $let
@@ -222,7 +221,7 @@ function do_print(string)
 
 (comment not from kernel report)
 
-($define! $quote ($vau (x) %ignore x))
+($define! $quote ($vau (x) #ignore x))
 
 ($define! map
    ($lambda (fun lst)
@@ -236,7 +235,7 @@ function do_print(string)
          (apply method (cons obj args)))))
 
 
-
+(comment delimited control)
 ($provide! (make-prompt $push-prompt with-sub-cont $push-sub-cont run-cc)
 
 ($define! prompt-vtable (make-vtable))
@@ -256,8 +255,8 @@ function do_print(string)
          ($lambda () (eval (list* $sequence es) env)))))
 
 
-($define! abort %inert)
-($define! mk %inert)
+($define! abort #inert)
+($define! mk #inert)
 
 ($define! local (get-current-environment))
 
@@ -382,7 +381,8 @@ function do_print(string)
              (sk (get-slot self ($quote mk*))))
          (push-seg seg (append-seq sk mk*)))))
 
-) (comment !edivorp$)
+) (comment end of delimited control)
+
 
 </pre>
 </body>
